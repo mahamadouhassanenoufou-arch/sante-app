@@ -8,157 +8,270 @@
 </head>
 <body class="bg-slate-100 min-h-screen flex flex-col items-center justify-center p-4">
 
-    <!-- Navbar -->
-    <header class="w-full max-w-md flex justify-between items-center mb-6">
+    <!-- Header / Navbar -->
+    <header class="w-full max-w-4xl flex justify-between items-center mb-6">
         <h1 class="text-2xl font-bold text-slate-800">Santé App</h1>
-        <button id="btn-logout" onclick="logout()" class="hidden bg-red-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-red-600">Déconnexion</button>
+        <button id="btn-logout" onclick="logout()" class="hidden bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-600 transition">
+            Déconnexion
+        </button>
     </header>
 
-    <!-- Vue Authentification -->
+    <!-- Vue Authentification (Connexion / Inscription) -->
     <main id="view-auth" class="w-full max-w-md bg-white p-6 rounded-xl shadow-md">
-        <h2 id="auth-title" class="text-xl font-bold mb-4 text-slate-700">Créer un compte</h2>
+        <h2 id="auth-title" class="text-xl font-bold text-slate-800 text-center mb-4">Connexion</h2>
         
         <form onsubmit="handleAuth(event)" class="space-y-4">
-            <div id="field-name">
-                <label class="block text-sm font-medium text-slate-600">Nom & Prénom</label>
-                <input type="text" id="auth-nom" class="w-full border rounded-lg p-2 mt-1 focus:ring-2 focus:ring-blue-500 outline-none">
+            <div id="field-nom" class="hidden">
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Nom & Prénom</label>
+                <input type="text" id="auth-nom" placeholder="Ex: Jean Dupont" class="w-full border rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500">
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-slate-600">Adresse Email</label>
-                <input type="email" id="auth-email" required class="w-full border rounded-lg p-2 mt-1 focus:ring-2 focus:ring-blue-500 outline-none">
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Adresse Email</label>
+                <input type="email" id="auth-email" required placeholder="nom@exemple.com" class="w-full border rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500">
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-slate-600">Mot de passe</label>
-                <input type="password" id="auth-password" required class="w-full border rounded-lg p-2 mt-1 focus:ring-2 focus:ring-blue-500 outline-none">
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Mot de passe</label>
+                <input type="password" id="auth-password" required placeholder="••••••••" class="w-full border rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500">
             </div>
 
-            <div id="field-role">
-                <label class="block text-sm font-medium text-slate-600">Vous êtes ?</label>
-                <select id="auth-role" class="w-full border rounded-lg p-2 mt-1 focus:ring-2 focus:ring-blue-500 outline-none">
+            <div id="field-role" class="hidden">
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Vous êtes ?</label>
+                <select id="auth-role" class="w-full border rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500">
                     <option value="PATIENT">Patient</option>
                     <option value="MEDECIN">Médecin</option>
                 </select>
             </div>
 
-            <button type="submit" id="btn-submit" class="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition">S'inscrire</button>
+            <button type="submit" id="btn-auth-submit" class="w-full bg-blue-900 text-white py-2.5 rounded-lg font-semibold text-sm hover:bg-blue-800 transition">
+                Se connecter
+            </button>
         </form>
 
-        <button onclick="toggleAuthMode()" id="toggle-text" class="w-full mt-4 text-center text-sm text-blue-600 hover:underline">
-            Déjà un compte ? Se connecter
-        </button>
+        <p class="text-center text-xs text-blue-600 mt-4 cursor-pointer hover:underline" onclick="toggleAuthMode()" id="toggle-auth-text">
+            Créer un compte
+        </p>
     </main>
 
     <!-- Vue Patient -->
-    <main id="view-patient" class="hidden w-full max-w-md bg-white p-6 rounded-xl shadow-md">
-        <h2 class="text-xl font-bold text-slate-800" id="patient-welcome">Espace Patient</h2>
-        <p class="text-slate-600 mt-2">Bienvenue sur votre tableau de bord patient.</p>
+    <main id="view-patient" class="hidden w-full max-w-xl bg-white p-6 rounded-xl shadow-md text-center">
+        <h2 id="patient-welcome" class="text-xl font-bold text-slate-800 mb-2">Bienvenue</h2>
+        <p class="text-slate-500 text-sm">Votre espace patient sera bientôt disponible pour la prise de rendez-vous.</p>
     </main>
 
     <!-- Vue Médecin -->
-    <main id="view-medecin" class="hidden w-full max-w-md bg-white p-6 rounded-xl shadow-md">
-        <h2 class="text-xl font-bold text-slate-800" id="medecin-welcome">Espace Médecin</h2>
-        <p class="text-slate-600 mt-2">Bienvenue sur votre tableau de bord médical.</p>
+    <main id="view-medecin" class="hidden w-full max-w-4xl bg-white p-6 rounded-xl shadow-md">
+        <div class="flex justify-between items-center mb-6 border-b pb-4">
+            <div>
+                <h2 class="text-2xl font-bold text-slate-800" id="medecin-welcome">Espace Médecin</h2>
+                <p class="text-slate-500 text-sm">Gestion des consultations et ordonnances</p>
+            </div>
+            <button onclick="loadMedecinData()" class="bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-sm font-semibold hover:bg-blue-100">🔄 Actualiser</button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Liste des RDV / Patients -->
+            <div>
+                <h3 class="text-lg font-bold text-slate-700 mb-3">Rendez-vous du jour</h3>
+                <div id="list-rdv" class="space-y-3 max-h-[400px] overflow-y-auto">
+                    <p class="text-slate-400 text-sm">Chargement des rendez-vous...</p>
+                </div>
+            </div>
+
+            <!-- Formulaire de Consultation -->
+            <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                <h3 class="text-lg font-bold text-slate-700 mb-3">Nouvelle Consultation</h3>
+                <form onsubmit="submitConsultation(event)" class="space-y-3">
+                    <input type="hidden" id="consult-rdv-id">
+                    
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600">Patient</label>
+                        <input type="text" id="consult-patient-name" readonly placeholder="Sélectionnez un rendez-vous" class="w-full bg-slate-200 border rounded-lg p-2 text-sm outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600">Symptômes</label>
+                        <textarea id="consult-symptomes" required rows="2" class="w-full border rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600">Diagnostic</label>
+                        <textarea id="consult-diagnostic" required rows="2" class="w-full border rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600">Prescription / Ordonnance</label>
+                        <textarea id="consult-prescription" rows="3" placeholder="Ex: Paracétamol 1g (3x/jour)" class="w-full border rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                    </div>
+
+                    <button type="submit" id="btn-save-consult" disabled class="w-full bg-emerald-600 text-white py-2 rounded-lg font-semibold text-sm hover:bg-emerald-700 disabled:opacity-50 transition">
+                        Enregistrer la consultation
+                    </button>
+                </form>
+            </div>
+        </div>
     </main>
 
-    <!-- SCRIPT JAVASCRIPT OBLIGATOIRE DANS LES BALISES <script> -->
     <script>
-        let isRegister = true;
-
-        document.addEventListener('DOMContentLoaded', checkSession);
-
-        function checkSession() {
-    const token = localStorage.getItem('token');
-    const role = localStorage.getItem('role');
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-
-    if (token && role) {
-        document.getElementById('view-auth').classList.add('hidden');
-        document.getElementById('btn-logout').classList.remove('hidden');
-
-        if (role === 'MEDECIN') {
-            document.getElementById('view-medecin').classList.remove('hidden');
-            document.getElementById('medecin-welcome').innerText = `Dr. ${user.prenom || ''} ${user.nom || ''}`;
-            loadMedecinData(); // Charge les RDV dès l'affichage
-        } else {
-            document.getElementById('view-patient').classList.remove('hidden');
-            document.getElementById('patient-welcome').innerText = `Bonjour ${user.prenom || user.nom || ''}`;
-        }
-    } else {
-        document.getElementById('view-auth').classList.remove('hidden');
-        document.getElementById('view-patient').classList.add('hidden');
-        document.getElementById('view-medecin').classList.add('hidden');
-        document.getElementById('btn-logout').classList.add('hidden');
-    }
-}
+        let isRegister = false;
 
         function toggleAuthMode() {
             isRegister = !isRegister;
-            document.getElementById('auth-title').innerText = isRegister ? "Créer un compte" : "Connexion";
-            document.getElementById('btn-submit').innerText = isRegister ? "S'inscrire" : "Se connecter";
-            document.getElementById('toggle-text').innerText = isRegister ? "Déjà un compte ? Se connecter" : "Créer un compte";
-            
-            document.getElementById('field-name').classList.toggle('hidden', !isRegister);
+            document.getElementById('auth-title').innerText = isRegister ? 'Créer un compte' : 'Connexion';
+            document.getElementById('btn-auth-submit').innerText = isRegister ? "S'inscrire" : 'Se connecter';
+            document.getElementById('toggle-auth-text').innerText = isRegister ? 'Déjà un compte ? Se connecter' : 'Créer un compte';
+            document.getElementById('field-nom').classList.toggle('hidden', !isRegister);
             document.getElementById('field-role').classList.toggle('hidden', !isRegister);
         }
 
         async function handleAuth(e) {
-    e.preventDefault();
-    const email = document.getElementById('auth-email').value;
-    const password = document.getElementById('auth-password').value;
+            e.preventDefault();
+            const email = document.getElementById('auth-email').value;
+            const password = document.getElementById('auth-password').value;
 
-    try {
-        if (isRegister) {
-            const nomComplet = document.getElementById('auth-nom').value.trim();
-            const parts = nomComplet.split(' ');
-            const nom = parts[0] || '';
-            const prenom = parts.slice(1).join(' ') || '';
-            const role = document.getElementById('auth-role').value;
+            try {
+                if (isRegister) {
+                    const nomComplet = document.getElementById('auth-nom').value.trim();
+                    const parts = nomComplet.split(' ');
+                    const nom = parts[0] || '';
+                    const prenom = parts.slice(1).join(' ') || '';
+                    const role = document.getElementById('auth-role').value;
 
-            const resRegister = await fetch('/api/auth/register', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ email, password, nom, prenom, role })
-            });
+                    const resRegister = await fetch('/api/auth/register', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ email, password, nom, prenom, role })
+                    });
 
-            if (!resRegister.ok) {
-                const textErr = await resRegister.text();
-                let detailMsg = textErr;
-                try {
-                    const parsed = JSON.parse(textErr);
-                    detailMsg = JSON.stringify(parsed.detail);
-                } catch(e) {}
-                alert(`Erreur Inscription (${resRegister.status}): ` + detailMsg);
-                return;
+                    if (!resRegister.ok) {
+                        const textErr = await resRegister.text();
+                        alert(`Erreur Inscription: ${textErr}`);
+                        return;
+                    }
+                }
+
+                const resLogin = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ email, password })
+                });
+
+                if (resLogin.ok) {
+                    const data = await resLogin.json();
+                    localStorage.setItem('token', data.access_token);
+                    localStorage.setItem('role', data.role);
+                    localStorage.setItem('user', JSON.stringify(data));
+                    checkSession();
+                } else {
+                    const textLoginErr = await resLogin.text();
+                    alert("Erreur connexion: " + textLoginErr);
+                }
+            } catch (err) {
+                alert("Erreur de communication: " + err.message);
             }
         }
 
-        const resLogin = await fetch('/api/auth/login', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ email, password })
-        });
+        async function loadMedecinData() {
+            try {
+                const res = await fetch('/api/medecin/rdv');
+                if (!res.ok) return;
+                const rdvs = await res.json();
+                const container = document.getElementById('list-rdv');
+                container.innerHTML = '';
 
-        if (resLogin.ok) {
-            const data = await resLogin.json();
-            localStorage.setItem('token', data.access_token);
-            localStorage.setItem('role', data.role);
-            localStorage.setItem('user', JSON.stringify(data));
-            checkSession();
-        } else {
-            const textLoginErr = await resLogin.text();
-            alert("Erreur connexion: " + textLoginErr);
+                if (rdvs.length === 0) {
+                    container.innerHTML = '<p class="text-slate-400 text-sm">Aucun rendez-vous planifié.</p>';
+                    return;
+                }
+
+                rdvs.forEach(rdv => {
+                    const isTermine = rdv.statut === 'TERMINE';
+                    const card = document.createElement('div');
+                    card.className = `p-3 rounded-lg border cursor-pointer transition ${isTermine ? 'bg-slate-100 border-slate-200 opacity-60' : 'bg-white border-blue-200 hover:border-blue-500 shadow-sm'}`;
+                    card.onclick = () => !isTermine && selectRdv(rdv);
+                    
+                    card.innerHTML = `
+                        <div class="flex justify-between items-start">
+                            <span class="font-bold text-slate-800 text-sm">${rdv.prenom_patient} ${rdv.nom_patient}</span>
+                            <span class="text-xs px-2 py-0.5 rounded ${isTermine ? 'bg-gray-200 text-gray-700' : 'bg-blue-100 text-blue-700'}">${rdv.statut}</span>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-1">Motif: ${rdv.motif}</p>
+                    `;
+                    container.appendChild(card);
+                });
+            } catch (e) {
+                console.error("Erreur chargement RDV:", e);
+            }
         }
-    } catch (err) {
-        alert("Erreur de communication: " + err.message);
-    }
-}
+
+        function selectRdv(rdv) {
+            document.getElementById('consult-rdv-id').value = rdv.id;
+            document.getElementById('consult-patient-name').value = `${rdv.prenom_patient} ${rdv.nom_patient}`;
+            document.getElementById('btn-save-consult').disabled = false;
+        }
+
+        async function submitConsultation(e) {
+            e.preventDefault();
+            const rdv_id = parseInt(document.getElementById('consult-rdv-id').value);
+            const symptomes = document.getElementById('consult-symptomes').value;
+            const diagnostic = document.getElementById('consult-diagnostic').value;
+            const prescription = document.getElementById('consult-prescription').value;
+
+            const res = await fetch('/api/medecin/consultation', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ rdv_id, symptomes, diagnostic, prescription })
+            });
+
+            if (res.ok) {
+                alert("Consultation enregistrée !");
+                document.getElementById('consult-rdv-id').value = '';
+                document.getElementById('consult-patient-name').value = '';
+                document.getElementById('consult-symptomes').value = '';
+                document.getElementById('consult-diagnostic').value = '';
+                document.getElementById('consult-prescription').value = '';
+                document.getElementById('btn-save-consult').disabled = true;
+                loadMedecinData();
+            } else {
+                alert("Erreur lors de l'enregistrement de la consultation.");
+            }
+        }
+
+        function checkSession() {
+            const token = localStorage.getItem('token');
+            const role = localStorage.getItem('role');
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+            if (token && role) {
+                document.getElementById('view-auth').classList.add('hidden');
+                document.getElementById('btn-logout').classList.remove('hidden');
+
+                if (role === 'MEDECIN') {
+                    document.getElementById('view-medecin').classList.remove('hidden');
+                    document.getElementById('view-patient').classList.add('hidden');
+                    document.getElementById('medecin-welcome').innerText = `Dr. ${user.prenom || ''} ${user.nom || ''}`;
+                    loadMedecinData();
+                } else {
+                    document.getElementById('view-patient').classList.remove('hidden');
+                    document.getElementById('view-medecin').classList.add('hidden');
+                    document.getElementById('patient-welcome').innerText = `Bonjour ${user.prenom || user.nom || ''}`;
+                }
+            } else {
+                document.getElementById('view-auth').classList.remove('hidden');
+                document.getElementById('view-patient').classList.add('hidden');
+                document.getElementById('view-medecin').classList.add('hidden');
+                document.getElementById('btn-logout').classList.add('hidden');
+            }
+        }
 
         function logout() {
             localStorage.clear();
             checkSession();
         }
+
+        // Vérification au chargement
+        checkSession();
     </script>
 </body>
 </html>
