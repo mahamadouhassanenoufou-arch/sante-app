@@ -1,257 +1,88 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Santé App PWA</title>
-    <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#2563eb">
-    <style>
-        :root {
-            --primary: #2563eb;
-            --bg: #f8fafc;
-            --card-bg: #ffffff;
-            --text-main: #0f172a;
-            --text-muted: #64748b;
-            --border: #e2e8f0;
-            --radius: 16px;
-        }
+<script>
+    let isRegister = false;
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        }
+    document.addEventListener('DOMContentLoaded', checkSession);
 
-        body {
-            background-color: var(--bg);
-            color: var(--text-main);
-            min-height: 100vh;
-        }
+    function checkSession() {
+        const token = localStorage.getItem('token');
+        const role = localStorage.getItem('role');
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
 
-        header {
-            background: white;
-            border-bottom: 1px solid var(--border);
-            padding: 12px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
+        if (token && role) {
+            document.getElementById('view-auth').classList.add('hidden');
+            document.getElementById('btn-logout').classList.remove('hidden');
 
-        .container {
-            max-width: 420px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-
-        .card {
-            background: var(--card-bg);
-            border-radius: var(--radius);
-            padding: 24px;
-            border: 1px solid var(--border);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-            margin-top: 20px;
-        }
-
-        .input-group {
-            margin-bottom: 16px;
-        }
-
-        .input-group label {
-            display: block;
-            font-size: 0.8rem;
-            font-weight: 600;
-            margin-bottom: 6px;
-            color: var(--text-muted);
-        }
-
-        .input-group input, .input-group select {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            font-size: 0.95rem;
-            outline: none;
-        }
-
-        .btn {
-            width: 100%;
-            padding: 14px;
-            border: none;
-            border-radius: 10px;
-            background-color: var(--primary);
-            color: white;
-            font-size: 0.95rem;
-            font-weight: 600;
-            cursor: pointer;
-        }
-
-        .btn-outline {
-            background: transparent;
-            color: var(--primary);
-            border: 1px solid var(--primary);
-            margin-top: 8px;
-        }
-
-        .hidden { display: none !important; }
-
-        .banner-patient { background: linear-gradient(135deg, #2563eb, #1d4ed8); color: white; }
-        .banner-medecin { background: linear-gradient(135deg, #0f172a, #1e293b); color: white; }
-    </style>
-</head>
-<body>
-
-    <header>
-        <h1 style="font-size: 1.1rem;">Santé App</h1>
-        <button id="btn-logout" class="hidden" onclick="logout()" style="background:none; border:none; color:red; font-size:0.8rem; cursor:pointer;">Déconnexion</button>
-    </header>
-
-    <div class="container">
-
-        <!-- 1. ÉCRAN DE CONNEXION / INSCRIPTION -->
-        <div id="view-auth">
-            <div class="card">
-                <h2 id="auth-title" style="margin-bottom: 16px; font-size: 1.2rem;">Connexion</h2>
-                
-                <form id="form-auth" onsubmit="handleAuth(event)">
-                    <div id="field-name" class="input-group hidden">
-                        <label>Nom & Prénom</label>
-                        <input type="text" id="auth-nom" placeholder="Jean Dupont">
-                    </div>
-
-                    <div class="input-group">
-                        <label>Adresse Email</label>
-                        <input type="email" id="auth-email" required placeholder="nom@exemple.com">
-                    </div>
-
-                    <div class="input-group">
-                        <label>Mot de passe</label>
-                        <input type="password" id="auth-password" required placeholder="••••••••">
-                    </div>
-
-                    <div id="field-role" class="input-group hidden">
-                        <label>Vous êtes ?</label>
-                        <select id="auth-role">
-                            <option value="PATIENT">Patient</option>
-                            <option value="MEDECIN">Médecin</option>
-                        </select>
-                    </div>
-
-                    <button type="submit" id="btn-submit" class="btn">Se connecter</button>
-                </form>
-
-                <button type="button" class="btn btn-outline" onclick="toggleAuthMode()">
-                    <span id="toggle-text">Créer un compte</span>
-                </button>
-            </div>
-        </div>
-
-        <!-- 2. ESPACE PATIENT -->
-        <div id="view-patient" class="hidden">
-            <div class="card banner-patient">
-                <p style="font-size:0.75rem; opacity:0.8;">ESPACE PATIENT</p>
-                <h2 id="patient-welcome" style="margin: 6px 0;">Bonjour</h2>
-                <p style="font-size:0.85rem;">Prochain RDV : Demain à 09:30 avec Dr. Abdoulaye</p>
-            </div>
-            <button class="btn" style="margin-top:16px;" onclick="alert('Module Prise de RDV')">+ Prendre RDV</button>
-        </div>
-
-        <!-- 3. ESPACE MÉDECIN -->
-        <div id="view-medecin" class="hidden">
-            <div class="card banner-medecin">
-                <p style="font-size:0.75rem; opacity:0.8;">ESPACE MÉDECIN</p>
-                <h2 id="medecin-welcome" style="margin: 6px 0;">Dr.</h2>
-                <p style="font-size:0.85rem;">8 Consultations programmées aujourd'hui</p>
-            </div>
-            <button class="btn" style="margin-top:16px;" onclick="alert('Module Consultation')">+ Nouvelle Consultation</button>
-        </div>
-
-    </div>
-
-    <script>
-        let isRegister = false;
-
-        document.addEventListener('DOMContentLoaded', checkSession);
-
-        function checkSession() {
-            const token = localStorage.getItem('token');
-            const role = localStorage.getItem('role');
-            const user = JSON.parse(localStorage.getItem('user') || '{}');
-
-            if (token && role) {
-                document.getElementById('view-auth').classList.add('hidden');
-                document.getElementById('btn-logout').classList.remove('hidden');
-
-                if (role === 'MEDECIN') {
-                    document.getElementById('view-medecin').classList.remove('hidden');
-                    document.getElementById('medecin-welcome').innerText = `Dr. ${user.nom || ''}`;
-                } else {
-                    document.getElementById('view-patient').classList.remove('hidden');
-                    document.getElementById('patient-welcome').innerText = `Bonjour ${user.prenom || ''}`;
-                }
+            if (role === 'MEDECIN') {
+                document.getElementById('view-medecin').classList.remove('hidden');
+                document.getElementById('medecin-welcome').innerText = `Dr. ${user.nom || ''}`;
             } else {
-                document.getElementById('view-auth').classList.remove('hidden');
-                document.getElementById('view-patient').classList.add('hidden');
-                document.getElementById('view-medecin').classList.add('hidden');
-                document.getElementById('btn-logout').classList.add('hidden');
+                document.getElementById('view-patient').classList.remove('hidden');
+                document.getElementById('patient-welcome').innerText = `Bonjour ${user.prenom || user.nom || ''}`;
+            }
+        } else {
+            document.getElementById('view-auth').classList.remove('hidden');
+            document.getElementById('view-patient').classList.add('hidden');
+            document.getElementById('view-medecin').classList.add('hidden');
+            document.getElementById('btn-logout').classList.add('hidden');
+        }
+    }
+
+    function toggleAuthMode() {
+        isRegister = !isRegister;
+        document.getElementById('auth-title').innerText = isRegister ? "Créer un compte" : "Connexion";
+        document.getElementById('btn-submit').innerText = isRegister ? "S'inscrire" : "Se connecter";
+        document.getElementById('toggle-text').innerText = isRegister ? "Déjà un compte ? Se connecter" : "Créer un compte";
+        
+        document.getElementById('field-name').classList.toggle('hidden', !isRegister);
+        document.getElementById('field-role').classList.toggle('hidden', !isRegister);
+    }
+
+    async function handleAuth(e) {
+        e.preventDefault();
+        const email = document.getElementById('auth-email').value;
+        const password = document.getElementById('auth-password').value;
+
+        if (isRegister) {
+            const nomComplet = document.getElementById('auth-nom').value.trim();
+            const parts = nomComplet.split(' ');
+            const nom = parts[0] || '';
+            const prenom = parts.slice(1).join(' ') || '';
+            const role = document.getElementById('auth-role').value;
+
+            // 1. Création du compte
+            const resRegister = await fetch('/api/auth/register', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ email, password, nom, prenom, role })
+            });
+
+            if (!resRegister.ok) {
+                const err = await resRegister.json();
+                alert(err.detail || "Erreur d'inscription");
+                return;
             }
         }
 
-        function toggleAuthMode() {
-            isRegister = !isRegister;
-            document.getElementById('auth-title').innerText = isRegister ? "Créer un compte" : "Connexion";
-            document.getElementById('btn-submit').innerText = isRegister ? "S'inscrire" : "Se connecter";
-            document.getElementById('toggle-text').innerText = isRegister ? "Déjà un compte ? Se connecter" : "Créer un compte";
-            
-            document.getElementById('field-name').classList.toggle('hidden', !isRegister);
-            document.getElementById('field-role').classList.toggle('hidden', !isRegister);
-        }
+        // 2. Connexion automatique (après inscription ou en connexion directe)
+        const resLogin = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ email, password })
+        });
 
-        async function handleAuth(e) {
-            e.preventDefault();
-            const email = document.getElementById('auth-email').value;
-            const password = document.getElementById('auth-password').value;
-
-            if (isRegister) {
-                const nom = document.getElementById('auth-nom').value;
-                const role = document.getElementById('auth-role').value;
-                const res = await fetch('/api/auth/register', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ email, password, nom, prenom: "", role })
-                });
-
-                if (res.ok) {
-                    alert("Compte créé ! Veuillez vous connecter.");
-                    toggleAuthMode();
-                } else {
-                    const err = await res.json();
-                    alert(err.detail || "Erreur d'inscription");
-                }
-            } else {
-                const res = await fetch('/api/auth/login', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ email, password })
-                });
-
-                if (res.ok) {
-                    const data = await res.json();
-                    localStorage.setItem('token', data.access_token);
-                    localStorage.setItem('role', data.role);
-                    localStorage.setItem('user', JSON.stringify(data));
-                    checkSession();
-                } else {
-                    alert("Email ou mot de passe incorrect");
-                }
-            }
-        }
-
-        function logout() {
-            localStorage.clear();
+        if (resLogin.ok) {
+            const data = await resLogin.json();
+            localStorage.setItem('token', data.access_token);
+            localStorage.setItem('role', data.role);
+            localStorage.setItem('user', JSON.stringify(data));
             checkSession();
+        } else {
+            alert("Email ou mot de passe incorrect");
         }
-    </script>
-</body>
-</html>
+    }
+
+    function logout() {
+        localStorage.clear();
+        checkSession();
+    }
+</script>
