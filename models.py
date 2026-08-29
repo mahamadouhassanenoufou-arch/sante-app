@@ -1,64 +1,82 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text
+import enum
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Enum
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 from database import Base
 
-class Patient(Base):
-    __tablename__ = "patients"
+# Enums pour fixer la gestion des rôles et des statuts de rendez-vous
+class UserRole(str, enum.Enum):
+    PATIENT = "PATIENT"
+    MEDECIN = "MEDECIN"
+    ADMIN = "ADMIN"
+
+class StatutRDV(str, enum.Enum):
+    EN_ATTENTE = "EN_ATTENTE"
+    CONFIRME = "CONFIRME"
+    ANNULE = "ANNULE"
+    TERMINE = "TERMINE"
+
+# 1. Modèle Utilisateur / Profil
+class User(Base):
+    __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
     nom = Column(String(100), nullable=False)
     prenom = Column(String(100), nullable=False)
-    email = Column(String(100), unique=True, index=True, nullable=False)
+    email = Column(String(150), unique=True, index=True, nullable=False)
+    hashed_password = Column(String(255), nullable=False)
+    role = Column(Enum(UserRole), default=UserRole.PATIENT, nullable=False)
     telephone = Column(String(20), nullable=True)
-    hashed_password = Column(String(255), nullable=True)
-    role = Column(String(20), default="patient", nullable=True)
+    
+    # Informations spécifiques au patient
+    groupe_sanguin = Column(String(5), nullable=True)
+    antecedents = Column(Text, nullable=True)
 
-    rendez_vous = relationship("RendezVous", back_populates="patient")
+    # Relations SQLAlchemy
+    rendez_vous_patient = relationship("RendezVous", foreign_keys="RendezVous.patient_id", back_populates="patient")
+    rendez_vous_medecin = relationship("RendezVous", foreign_keys="RendezVous.medecin_id", back_populates="medecin")
+    consultations_recues = relationship("Consultation", foreign_keys="Consultation.patient_id", back_populates="patient")
+    consultations_donnees = relationship("Consultation", foreign_keys="Consultation.medecin_id", back_populates="medecin")
 
-class Medecin(Base):
-    __tablename__ = "medecins"
-
-    id = Column(Integer, primary_key=True, index=True)
-    nom = Column(String(100), nullable=False)
-    prenom = Column(String(100), nullable=False)
-    specialite = Column(String(100), nullable=False)
-    email = Column(String(100), unique=True, index=True, nullable=False)
-
-    rendez_vous = relationship("RendezVous", back_populates="medecin")
-    disponibilites = relationship("Disponibilite", back_populates="medecin", cascade="all, delete-orphan")
-
+# 2. Modèle Rendez-vous
 class RendezVous(Base):
     __tablename__ = "rendez_vous"
 
     id = Column(Integer, primary_key=True, index=True)
-    date_heure = Column(DateTime, nullable=False)
-    motif = Column(String(255), nullable=False)
-    statut = Column(String(50), default="Programmé")
-    patient_id = Column(Integer, ForeignKey("patients.id"), nullable=False)
-    medecin_id = Column(Integer, ForeignKey("medecins.id"), nullable=False)
+    patient_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    medecin_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    date_heure = Column(DateTime(timezone=True), nullable=False)
+    motif = Column(String(255), nullable=True)
+    statut = Column(Enum(StatutRDV), default=StatutRDV.EN_ATTENTE, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    patient = relationship("Patient", back_populates="rendez_vous")
-    medecin = relationship("Medecin", back_populates="rendez_vous")
-    notes = relationship("ConsultationNote", back_populates="rendez_vous", cascade="all, delete-orphan")
+    patient = relationship("User", foreign_keys=[patient_id], back_populates="rendez_vous_patient")
+    medecin = relationship("User", foreign_keys=[medecin_id], back_populates="rendez_vous_medecin")
 
-class Disponibilite(Base):
-    __tablename__ = "disponibilites"
-
-    id = Column(Integer, primary_key=True, index=True)
-    medecin_id = Column(Integer, ForeignKey("medecins.id"), nullable=False)
-    jour_semaine = Column(String(20), nullable=False)  # ex: "Lundi", "Mardi"
-    heure_debut = Column(String(5), nullable=False)   # ex: "08:00"
-    heure_fin = Column(String(5), nullable=False)     # ex: "17:00"
-
-    medecin = relationship("Medecin", back_populates="disponibilites")
-
-class ConsultationNote(Base):
-    __tablename__ = "consultation_notes"
+# 3. Modèle Consultation
+class Consultation(Base):
+    __tablename__ = "consultations"
 
     id = Column(Integer, primary_key=True, index=True)
-    rendez_vous_id = Column(Integer, ForeignKey("rendez_vous.id"), nullable=False)
+    patient_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    medecin_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    symptomes = Column(Text, nullable=True)
     diagnostic = Column(Text, nullable=False)
-    prescription = Column(Text, nullable=True)
-    date_creation = Column(DateTime, nullable=False)
+    notes_privees = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    rendez_vous = relationship("RendezVous", back_populates="notes")
+    patient = relationship("User", foreign_keys=[patient_id], back_populates="consultations_recues")
+    medecin = relationship("User", foreign_keys=[medecin_id], back_populates="consultations_donnees")
+    ordonnance = relationship("Ordonnance", back_populates="consultation", uselist=False)
+
+# 4. Modèle Ordonnance
+class Ordonnance(Base):
+    __tablename__ = "ordonnances"
+
+    id = Column(Integer, primary_key=True, index=True)
+    consultation_id = Column(Integer, ForeignKey("consultations.id"), nullable=False)
+    contenu_medicaments = Column(Text, nullable=False) # Liste des médicaments et posologies
+    instructions = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    consultation = relationship("Consultation", back_populates="ordonnance")
