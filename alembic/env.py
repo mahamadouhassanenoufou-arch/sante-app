@@ -17,7 +17,7 @@ if db_url:
     if db_url.startswith("postgres://"):
         db_url = db_url.replace("postgres://", "postgresql://", 1)
     config.set_main_option("sqlalchemy.url", db_url)
-    
+
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.
     This configures the context with just a URL
@@ -40,14 +40,20 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    """Run migrations in 'online' mode.
+    """Run migrations in 'online' mode."""
+    
+    # 1. Récupérer la section de configuration d'Alembic
+    configuration = config.get_section(config.config_ini_section, {})
+    
+    # 2. Remplacer l'URL locale par DATABASE_URL sur Render
+    db_url = os.getenv("DATABASE_URL")
+    if db_url:
+        if db_url.startswith("postgres://"):
+            db_url = db_url.replace("postgres://", "postgresql://", 1)
+        configuration["sqlalchemy.url"] = db_url
 
-    In this scenario we need to create an Engine
-    and associate a connection with the context.
-
-    """
     connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
+        configuration,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
@@ -59,8 +65,7 @@ def run_migrations_online() -> None:
 
         with context.begin_transaction():
             context.run_migrations()
-
-
+            
 if context.is_offline_mode():
     run_migrations_offline()
 else:
