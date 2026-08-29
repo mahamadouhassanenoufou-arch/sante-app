@@ -1,46 +1,158 @@
-async function handleAuth(e) {
-    e.preventDefault();
-    const email = document.getElementById('auth-email').value;
-    const password = document.getElementById('auth-password').value;
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Santé App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 min-h-screen flex flex-col items-center justify-center p-4">
 
-    try {
-        if (isRegister) {
-            const nomComplet = document.getElementById('auth-nom').value.trim();
-            const parts = nomComplet.split(' ');
-            const nom = parts[0] || '';
-            const prenom = parts.slice(1).join(' ') || '';
-            const role = document.getElementById('auth-role').value;
+    <!-- Navbar -->
+    <header class="w-full max-w-md flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-slate-800">Santé App</h1>
+        <button id="btn-logout" onclick="logout()" class="hidden bg-red-500 text-white px-3 py-1 rounded-lg text-sm hover:bg-red-600">Déconnexion</button>
+    </header>
 
-            const resRegister = await fetch('/api/auth/register', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ email, password, nom, prenom, role })
-            });
+    <!-- Vue Authentification -->
+    <main id="view-auth" class="w-full max-w-md bg-white p-6 rounded-xl shadow-md">
+        <h2 id="auth-title" class="text-xl font-bold mb-4 text-slate-700">Créer un compte</h2>
+        
+        <form onsubmit="handleAuth(event)" class="space-y-4">
+            <div id="field-name">
+                <label class="block text-sm font-medium text-slate-600">Nom & Prénom</label>
+                <input type="text" id="auth-nom" class="w-full border rounded-lg p-2 mt-1 focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
 
-            if (!resRegister.ok) {
-                const err = await resRegister.json();
-                alert(`Erreur inscription (${resRegister.status}): ` + (JSON.stringify(err.detail) || "Erreur serveur"));
-                return;
+            <div>
+                <label class="block text-sm font-medium text-slate-600">Adresse Email</label>
+                <input type="email" id="auth-email" required class="w-full border rounded-lg p-2 mt-1 focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-slate-600">Mot de passe</label>
+                <input type="password" id="auth-password" required class="w-full border rounded-lg p-2 mt-1 focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+
+            <div id="field-role">
+                <label class="block text-sm font-medium text-slate-600">Vous êtes ?</label>
+                <select id="auth-role" class="w-full border rounded-lg p-2 mt-1 focus:ring-2 focus:ring-blue-500 outline-none">
+                    <option value="PATIENT">Patient</option>
+                    <option value="MEDECIN">Médecin</option>
+                </select>
+            </div>
+
+            <button type="submit" id="btn-submit" class="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition">S'inscrire</button>
+        </form>
+
+        <button onclick="toggleAuthMode()" id="toggle-text" class="w-full mt-4 text-center text-sm text-blue-600 hover:underline">
+            Déjà un compte ? Se connecter
+        </button>
+    </main>
+
+    <!-- Vue Patient -->
+    <main id="view-patient" class="hidden w-full max-w-md bg-white p-6 rounded-xl shadow-md">
+        <h2 class="text-xl font-bold text-slate-800" id="patient-welcome">Espace Patient</h2>
+        <p class="text-slate-600 mt-2">Bienvenue sur votre tableau de bord patient.</p>
+    </main>
+
+    <!-- Vue Médecin -->
+    <main id="view-medecin" class="hidden w-full max-w-md bg-white p-6 rounded-xl shadow-md">
+        <h2 class="text-xl font-bold text-slate-800" id="medecin-welcome">Espace Médecin</h2>
+        <p class="text-slate-600 mt-2">Bienvenue sur votre tableau de bord médical.</p>
+    </main>
+
+    <!-- SCRIPT JAVASCRIPT OBLIGATOIRE DANS LES BALISES <script> -->
+    <script>
+        let isRegister = true;
+
+        document.addEventListener('DOMContentLoaded', checkSession);
+
+        function checkSession() {
+            const token = localStorage.getItem('token');
+            const role = localStorage.getItem('role');
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+            if (token && role) {
+                document.getElementById('view-auth').classList.add('hidden');
+                document.getElementById('btn-logout').classList.remove('hidden');
+
+                if (role === 'MEDECIN') {
+                    document.getElementById('view-medecin').classList.remove('hidden');
+                    document.getElementById('medecin-welcome').innerText = `Dr. ${user.nom || ''}`;
+                } else {
+                    document.getElementById('view-patient').classList.remove('hidden');
+                    document.getElementById('patient-welcome').innerText = `Bonjour ${user.prenom || user.nom || ''}`;
+                }
+            } else {
+                document.getElementById('view-auth').classList.remove('hidden');
+                document.getElementById('view-patient').classList.add('hidden');
+                document.getElementById('view-medecin').classList.add('hidden');
+                document.getElementById('btn-logout').classList.add('hidden');
             }
         }
 
-        const resLogin = await fetch('/api/auth/login', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ email, password })
-        });
-
-        if (resLogin.ok) {
-            const data = await resLogin.json();
-            localStorage.setItem('token', data.access_token);
-            localStorage.setItem('role', data.role);
-            localStorage.setItem('user', JSON.stringify(data));
-            checkSession();
-        } else {
-            const errLogin = await resLogin.json();
-            alert("Erreur connexion: " + (errLogin.detail || "Identifiants invalides"));
+        function toggleAuthMode() {
+            isRegister = !isRegister;
+            document.getElementById('auth-title').innerText = isRegister ? "Créer un compte" : "Connexion";
+            document.getElementById('btn-submit').innerText = isRegister ? "S'inscrire" : "Se connecter";
+            document.getElementById('toggle-text').innerText = isRegister ? "Déjà un compte ? Se connecter" : "Créer un compte";
+            
+            document.getElementById('field-name').classList.toggle('hidden', !isRegister);
+            document.getElementById('field-role').classList.toggle('hidden', !isRegister);
         }
-    } catch (err) {
-        alert("Erreur de communication réseau avec le serveur: " + err.message);
-    }
-}
+
+        async function handleAuth(e) {
+            e.preventDefault();
+            const email = document.getElementById('auth-email').value;
+            const password = document.getElementById('auth-password').value;
+
+            try {
+                if (isRegister) {
+                    const nomComplet = document.getElementById('auth-nom').value.trim();
+                    const parts = nomComplet.split(' ');
+                    const nom = parts[0] || '';
+                    const prenom = parts.slice(1).join(' ') || '';
+                    const role = document.getElementById('auth-role').value;
+
+                    const resRegister = await fetch('/api/auth/register', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ email, password, nom, prenom, role })
+                    });
+
+                    if (!resRegister.ok) {
+                        const err = await resRegister.json();
+                        alert(`Erreur inscription (${resRegister.status}): ` + (JSON.stringify(err.detail) || "Erreur serveur"));
+                        return;
+                    }
+                }
+
+                const resLogin = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ email, password })
+                });
+
+                if (resLogin.ok) {
+                    const data = await resLogin.json();
+                    localStorage.setItem('token', data.access_token);
+                    localStorage.setItem('role', data.role);
+                    localStorage.setItem('user', JSON.stringify(data));
+                    checkSession();
+                } else {
+                    const errLogin = await resLogin.json();
+                    alert("Erreur connexion: " + (errLogin.detail || "Identifiants invalides"));
+                }
+            } catch (err) {
+                alert("Erreur de communication réseau avec le serveur: " + err.message);
+            }
+        }
+
+        function logout() {
+            localStorage.clear();
+            checkSession();
+        }
+    </script>
+</body>
+</html>
