@@ -1,18 +1,8 @@
 import enum
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Enum as SQLEnum
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from database import Base
-
-class RoleEnum(str, enum.Enum):
-    PATIENT = "PATIENT"
-    MEDECIN = "MEDECIN"
-
-class StatusRdv(str, enum.Enum):
-    EN_ATTENTE = "EN_ATTENTE"
-    CONFIRME = "CONFIRME"
-    TERMINE = "TERMINE"
-    ANNULE = "ANNULE"
 
 class User(Base):
     __tablename__ = "users"
@@ -22,7 +12,7 @@ class User(Base):
     prenom = Column(String, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
-    role = Column(SQLEnum(RoleEnum), default=RoleEnum.PATIENT)
+    role = Column(String, default="PATIENT")
     telephone = Column(String, nullable=True)
 
 class RendezVous(Base):
@@ -31,7 +21,7 @@ class RendezVous(Base):
     id = Column(Integer, primary_key=True, index=True)
     date_heure = Column(DateTime, default=datetime.utcnow)
     motif = Column(String, nullable=False)
-    statut = Column(SQLEnum(StatusRdv), default=StatusRdv.EN_ATTENTE)
+    statut = Column(String, default="EN_ATTENTE")
 
     patient_id = Column(Integer, ForeignKey("users.id"))
     medecin_id = Column(Integer, ForeignKey("users.id"))

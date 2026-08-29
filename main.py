@@ -11,16 +11,14 @@ import schemas
 import security
 from database import get_db, engine
 
-# 1. Création des tables DB
+# Création des tables DB
 try:
     models.Base.metadata.create_all(bind=engine)
 except Exception as e:
     print(f"Erreur création tables: {e}")
 
-# 2. Déclaration IMPÉRATIVE de l'instance 'app' AVANT toute route
 app = FastAPI(title="Santé App API", version="2.0")
 
-# 3. Middlewares et Fichiers Statiques
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -32,7 +30,6 @@ app.add_middleware(
 if os.path.exists("static"):
     app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# 4. Routes d'Authentification
 @app.get("/", response_class=HTMLResponse)
 async def serve_index():
     possible_paths = ["static/index.html", "index.html"]
@@ -78,13 +75,12 @@ def login(user_credentials: schemas.UserLogin, db: Session = Depends(get_db)):
                 detail="Email ou mot de passe incorrect"
             )
         
-        role_value = user.role.value if hasattr(user.role, 'value') else str(user.role)
-        access_token = security.create_access_token(data={"sub": user.email, "role": role_value})
+        access_token = security.create_access_token(data={"sub": user.email, "role": str(user.role)})
         
         return {
             "access_token": access_token,
             "token_type": "bearer",
-            "role": role_value,
+            "role": str(user.role),
             "nom": user.nom,
             "prenom": user.prenom
         }
@@ -93,7 +89,6 @@ def login(user_credentials: schemas.UserLogin, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erreur connexion: {str(e)}")
 
-# 5. Routes Espace Médecin
 @app.get("/api/medecin/rdv", response_model=List[schemas.RdvOut])
 def get_medecin_rdv(db: Session = Depends(get_db)):
     rdvs = db.query(models.RendezVous).all()
@@ -104,7 +99,7 @@ def get_medecin_rdv(db: Session = Depends(get_db)):
             "id": r.id,
             "date_heure": r.date_heure,
             "motif": r.motif,
-            "statut": r.statut.value if hasattr(r.statut, 'value') else str(r.statut),
+            "statut": str(r.statut),
             "patient_id": r.patient_id,
             "nom_patient": patient.nom if patient else "Inconnu",
             "prenom_patient": patient.prenom if patient else ""
@@ -123,7 +118,7 @@ def create_consultation(data: schemas.ConsultationCreate, db: Session = Depends(
         diagnostic=data.diagnostic,
         prescription=data.prescription
     )
-    rdv.statut = models.StatusRdv.TERMINE
+    rdv.statut = "TERMINE"
     
     db.add(consultation)
     db.commit()
@@ -133,15 +128,8 @@ def create_consultation(data: schemas.ConsultationCreate, db: Session = Depends(
 @app.post("/api/dev/seed-rdv")
 def seed_rdv(db: Session = Depends(get_db)):
     try:
-        # 1. Récupérer ou créer un médecin
-        medecin = db.query(models.User).filter(
-            (models.User.role == models.RoleEnum.MEDECIN) | (models.User.role == "MEDECIN")
-        ).first()
-
-        # 2. Récupérer ou créer un patient de test
-        patient = db.query(models.User).filter(
-            (models.User.role == models.RoleEnum.PATIENT) | (models.User.role == "PATIENT")
-        ).first()
+        medecin = db.query(models.User).filter(models.User.role == "MEDECIN").first()
+        patient = db.query(models.User).filter(models.User.role == "PATIENT").first()
 
         if not patient:
             patient = models.User(
@@ -149,30 +137,31 @@ def seed_rdv(db: Session = Depends(get_db)):
                 prenom="Amadou",
                 email="patient.test@example.com",
                 hashed_password=security.get_password_hash("password123"),
-                role=models.RoleEnum.PATIENT
+                role="PATIENT"
             )
             db.add(patient)
             db.commit()
             db.refresh(patient)
 
         if not medecin:
-            return {"error": "Aucun médecin trouvé. Reconnectez-vous en tant que Médecin d'abord."}
+            return {"error": "Aucun médecin trouvé dans la base de données."}
 
-        # 3. Créer les rendez-vous de démonstration
         rdv1 = models.RendezVous(
             motif="Consultation générale",
+            statut="EN_ATTENTE",
             patient_id=patient.id,
             medecin_id=medecin.id
         )
         rdv2 = models.RendezVous(
             motif="Suivi bilan de santé",
+            statut="EN_ATTENTE",
             patient_id=patient.id,
             medecin_id=medecin.id
         )
 
         db.add_all([rdv1, rdv2])
         db.commit()
-        return {"message": "Rendez-vous de test créés avec succès !", "patient": patient.email}
+        return {"message": "Rendez-vous de test créés avec succès !"}
 
     except Exception as e:
         db.rollback()
