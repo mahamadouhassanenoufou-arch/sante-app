@@ -1,87 +1,81 @@
-import os
 from fastapi import FastAPI, Depends, HTTPException, status
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from sqlalchemy import text
+from jose import JWTError, jwt
 
-# Importation de vos modules locaux (adaptez selon votre structure réelle)
-from database import get_db, engine
 import models
+import schemas
+import security
+from database import get_db, engine
 
-# Initialisation de l'application FastAPI
-app = FastAPI(
-    title="Santé App API",
-    version="2.0",
-    description="API de gestion médicale et PWA pour Patients et Médecins"
-)
+# Création automatique des tables
+models.Base.metadata.create_all(bind=engine)
 
-# --- 1. Configuration CORS (pour accès mobile et externe) ---
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # À restreindre en production si nécessaire
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+app = FastAPI(title="Santé App API", version="2.0")
 
-# --- 2. Configuration des Fichiers Statiques et PWA ---
-# S'assure que le dossier 'static' existe pour éviter des erreurs au démarrage
-if os.path.exists("static"):
-    app.mount("/static", StaticFiles(directory="static"), name="static")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
-@app.get("/", response_class=FileResponse)
-async def serve_index():
-    """Sert l'interface utilisateur PWA principale."""
-    index_path = os.path.join("static", "index.html")
-    if not os.path.exists(index_path):
-        raise HTTPException(status_code=404, detail="Fichier index.html introuvable dans static/")
-    return FileResponse(index_path)
-
-@app.get("/manifest.json", response_class=FileResponse)
-async def serve_manifest():
-    """Sert le fichier de configuration PWA."""
-    return FileResponse(os.path.join("static", "manifest.json"))
-
-@app.get("/sw.js", response_class=FileResponse)
-async def serve_sw():
-    """Sert le Service Worker pour le fonctionnement hors-ligne."""
-    return FileResponse(os.path.join("static", "sw.js"))
-
-# --- 3. Verification de Santé (Health Check) ---
-@app.get("/api/health")
-def health_check(db: Session = Depends(get_db)):
+# --- Dépendance pour récupérer l'utilisateur connecté via JWT ---
+def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Identifiants invalides ou session expirée",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
     try:
-        db.execute(text("SELECT 1"))
-        return {"status": "ok", "database": "connected"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erreur DB: {str(e)}")
+        payload = jwt.decode(token, security.SECRET_KEY, algorithms=[security.ALGORITHM])
+        email: str = payload.get("sub")
+        if email is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
 
-# --- 4. Endpoints d'Exemple pour la PWA (Patients & Médecins) ---
-@app.post("/api/data")
-async def receive_data(payload: dict, db: Session = Depends(get_db)):
-    """
-    Endpoint de réception des formulaires envoyés depuis la PWA
-    (Prend en charge la synchronisation des données hors-ligne).
-    """
-    print(f"Données reçues de la PWA: {payload}")
-    # Insérez ici votre logique de sauvegarde en BDD avec vos modèles SQLAlchemy
-    return {"status": "success", "message": "Données enregistrées avec succès"}
+    user = db.query(models.User).filter(models.User.email == email).first()
+    if user is None:
+        raise credentials_exception
+    return user
 
-@app.get("/api/patient/dashboard")
-async def get_patient_dashboard(db: Session = Depends(get_db)):
-    """Données spécifiques à l'espace Patient."""
+# --- Endpoint Inscription ---
+@app.post("/api/auth/register", response_model=schemas.UserOut)
+def register_user(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
+    db_user = db.query(models.User).filter(models.User.email == user_in.email).first()
+    if db_user:
+        raise HTTPException(status_code=400, detail="Cet email est déjà enregistré.")
+    
+    hashed_pwd = security.get_password_hash(user_in.password)
+    new_user = models.User(
+        nom=user_in.nom,
+        prenom=user_in.prenom,
+        email=user_in.email,
+        hashed_password=hashed_pwd,
+        role=user_in.role,
+        telephone=user_in.telephone
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    return new_user
+
+# --- Endpoint Connexion (génère le JWT) ---
+@app.post("/api/auth/login", response_model=schemas.Token)
+def login(user_credentials: schemas.UserLogin, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.email == user_credentials.email).first()
+    if not user or not security.verify_password(user_credentials.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Email ou mot de passe incorrect"
+        )
+    
+    access_token = security.create_access_token(data={"sub": user.email, "role": user.role.value})
     return {
-        "role": "patient",
-        "prochain_rdv": {"medecin": "Dr. Abdoulaye", "specialite": "Cardiologie", "date": "Demain à 09:30"}
+        "access_token": access_token,
+        "token_type": "bearer",
+        "role": user.role.value,
+        "nom": user.nom,
+        "prenom": user.prenom
     }
 
-@app.get("/api/medecin/dashboard")
-async def get_medecin_dashboard(db: Session = Depends(get_db)):
-    """Données spécifiques à l'espace Médecin."""
-    return {
-        "role": "medecin",
-        "consultations_du_jour": 8,
-        "patients_en_attente": 2
-    }
+# --- Endpoint Protegé de profil ---
+@app.get("/api/auth/me", response_model=schemas.UserOut)
+def read_users_me(current_user: models.User = Depends(get_current_user)):
+    return current_user
