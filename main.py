@@ -132,15 +132,48 @@ def create_consultation(data: schemas.ConsultationCreate, db: Session = Depends(
 
 @app.post("/api/dev/seed-rdv")
 def seed_rdv(db: Session = Depends(get_db)):
-    patient = db.query(models.User).filter(models.User.role == models.RoleEnum.PATIENT).first()
-    medecin = db.query(models.User).filter(models.User.role == models.RoleEnum.MEDECIN).first()
-    
-    if not patient or not medecin:
-        return {"message": "Créez au moins un Patient et un Médecin avant d'exécuter ce test."}
+    try:
+        # 1. Récupérer ou créer un médecin
+        medecin = db.query(models.User).filter(
+            (models.User.role == models.RoleEnum.MEDECIN) | (models.User.role == "MEDECIN")
+        ).first()
 
-    rdv1 = models.RendezVous(motif="Consultation générale", patient_id=patient.id, medecin_id=medecin.id)
-    rdv2 = models.RendezVous(motif="Suivi de contrôle", patient_id=patient.id, medecin_id=medecin.id)
-    
-    db.add_all([rdv1, rdv2])
-    db.commit()
-    return {"message": "Rendez-vous de test créés avec succès !"}
+        # 2. Récupérer ou créer un patient de test
+        patient = db.query(models.User).filter(
+            (models.User.role == models.RoleEnum.PATIENT) | (models.User.role == "PATIENT")
+        ).first()
+
+        if not patient:
+            patient = models.User(
+                nom="Diallo",
+                prenom="Amadou",
+                email="patient.test@example.com",
+                hashed_password=security.get_password_hash("password123"),
+                role=models.RoleEnum.PATIENT
+            )
+            db.add(patient)
+            db.commit()
+            db.refresh(patient)
+
+        if not medecin:
+            return {"error": "Aucun médecin trouvé. Reconnectez-vous en tant que Médecin d'abord."}
+
+        # 3. Créer les rendez-vous de démonstration
+        rdv1 = models.RendezVous(
+            motif="Consultation générale",
+            patient_id=patient.id,
+            medecin_id=medecin.id
+        )
+        rdv2 = models.RendezVous(
+            motif="Suivi bilan de santé",
+            patient_id=patient.id,
+            medecin_id=medecin.id
+        )
+
+        db.add_all([rdv1, rdv2])
+        db.commit()
+        return {"message": "Rendez-vous de test créés avec succès !", "patient": patient.email}
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Erreur seed: {str(e)}")
