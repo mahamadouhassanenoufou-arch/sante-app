@@ -1,26 +1,25 @@
 import os
 from datetime import datetime, timedelta
 from typing import Optional
-from passlib.context import CryptContext
 from jose import JWTError, jwt
+from passlib.context import CryptContext
 
-# Clé secrète (récupérée des variables d'environnement de Render ou clé par défaut)
-SECRET_KEY = os.getenv("SECRET_KEY", "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7")
+SECRET_KEY = os.getenv("SECRET_KEY", "VOTRE_SECRET_KEY_SUPER_SECURISEE")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 jours
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Vérifie si le mot de passe en clair correspond au hash."""
-    return pwd_context.verify(plain_password, hashed_password)
-
 def get_password_hash(password: str) -> str:
-    """Génère un hash sécurisé du mot de passe."""
-    return pwd_context.hash(password)
+    # Troncature stricte à 72 octets pour éviter l'erreur bcrypt
+    truncated_password = password.encode('utf-8')[:72].decode('utf-8', errors='ignore')
+    return pwd_context.hash(truncated_password)
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    truncated_password = plain_password.encode('utf-8')[:72].decode('utf-8', errors='ignore')
+    return pwd_context.verify(truncated_password, hashed_password)
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-    """Génère un jeton d'accès JWT."""
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
