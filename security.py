@@ -10,14 +10,18 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+def _prepare_password(password: str) -> str:
+    # Convertit en bytes, tronque à 72 octets max, puis réencode en str propre
+    pwd_bytes = password.encode("utf-8")[:72]
+    return pwd_bytes.decode("utf-8", errors="ignore")
+
 def get_password_hash(password: str) -> str:
-    # Troncature stricte à 72 octets pour éviter l'erreur bcrypt
-    truncated_password = password.encode('utf-8')[:72].decode('utf-8', errors='ignore')
-    return pwd_context.hash(truncated_password)
+    safe_pwd = _prepare_password(password)
+    return pwd_context.hash(safe_pwd)
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    truncated_password = plain_password.encode('utf-8')[:72].decode('utf-8', errors='ignore')
-    return pwd_context.verify(truncated_password, hashed_password)
+    safe_pwd = _prepare_password(plain_password)
+    return pwd_context.verify(safe_pwd, hashed_password)
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()

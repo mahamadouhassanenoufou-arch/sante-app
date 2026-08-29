@@ -9,3 +9,5 @@ python-jose[cryptography]
 python-multipart
 email-validator
 aiofiles
+bcrypt==4.0.1
+pydantic
