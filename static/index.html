@@ -103,51 +103,56 @@
         }
 
         async function handleAuth(e) {
-            e.preventDefault();
-            const email = document.getElementById('auth-email').value;
-            const password = document.getElementById('auth-password').value;
+    e.preventDefault();
+    const email = document.getElementById('auth-email').value;
+    const password = document.getElementById('auth-password').value;
 
-            try {
-                if (isRegister) {
-                    const nomComplet = document.getElementById('auth-nom').value.trim();
-                    const parts = nomComplet.split(' ');
-                    const nom = parts[0] || '';
-                    const prenom = parts.slice(1).join(' ') || '';
-                    const role = document.getElementById('auth-role').value;
+    try {
+        if (isRegister) {
+            const nomComplet = document.getElementById('auth-nom').value.trim();
+            const parts = nomComplet.split(' ');
+            const nom = parts[0] || '';
+            const prenom = parts.slice(1).join(' ') || '';
+            const role = document.getElementById('auth-role').value;
 
-                    const resRegister = await fetch('/api/auth/register', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({ email, password, nom, prenom, role })
-                    });
+            const resRegister = await fetch('/api/auth/register', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ email, password, nom, prenom, role })
+            });
 
-                    if (!resRegister.ok) {
-                        const err = await resRegister.json();
-                        alert(`Erreur inscription (${resRegister.status}): ` + (JSON.stringify(err.detail) || "Erreur serveur"));
-                        return;
-                    }
-                }
-
-                const resLogin = await fetch('/api/auth/login', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ email, password })
-                });
-
-                if (resLogin.ok) {
-                    const data = await resLogin.json();
-                    localStorage.setItem('token', data.access_token);
-                    localStorage.setItem('role', data.role);
-                    localStorage.setItem('user', JSON.stringify(data));
-                    checkSession();
-                } else {
-                    const errLogin = await resLogin.json();
-                    alert("Erreur connexion: " + (errLogin.detail || "Identifiants invalides"));
-                }
-            } catch (err) {
-                alert("Erreur de communication réseau avec le serveur: " + err.message);
+            if (!resRegister.ok) {
+                const textErr = await resRegister.text();
+                let detailMsg = textErr;
+                try {
+                    const parsed = JSON.parse(textErr);
+                    detailMsg = JSON.stringify(parsed.detail);
+                } catch(e) {}
+                alert(`Erreur Inscription (${resRegister.status}): ` + detailMsg);
+                return;
             }
         }
+
+        const resLogin = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ email, password })
+        });
+
+        if (resLogin.ok) {
+            const data = await resLogin.json();
+            localStorage.setItem('token', data.access_token);
+            localStorage.setItem('role', data.role);
+            localStorage.setItem('user', JSON.stringify(data));
+            checkSession();
+        } else {
+            const textLoginErr = await resLogin.text();
+            alert("Erreur connexion: " + textLoginErr);
+        }
+    } catch (err) {
+        alert("Erreur de communication: " + err.message);
+    }
+}
 
         function logout() {
             localStorage.clear();
