@@ -1,27 +1,20 @@
 import os
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
-# Modules locaux
 import models
 import schemas
 import security
 from database import get_db, engine
 
-# Création automatique des tables dans PostgreSQL au démarrage
 models.Base.metadata.create_all(bind=engine)
 
-app = FastAPI(
-    title="Santé App API",
-    version="2.0",
-    description="Backend FastAPI & PWA pour l'application Santé App"
-)
+app = FastAPI(title="Santé App API", version="2.0")
 
-# --- 1. Middleware CORS ---
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -30,27 +23,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- 2. Servir l'interface PWA & Fichiers Statiques ---
+# Servir static si le dossier existe
 if os.path.exists("static"):
     app.mount("/static", StaticFiles(directory="static"), name="static")
 
-@app.get("/")
+@app.get("/", response_class=HTMLResponse)
 async def serve_index():
-    index_path = os.path.join("static", "index.html") if os.path.exists("static/index.html") else "index.html"
-    if not os.path.exists(index_path):
-        raise HTTPException(status_code=404, detail="Page introuvable")
-    return FileResponse(index_path)
+    paths = ["static/index.html", "index.html"]
+    for path in paths:
+        if os.path.exists(path):
+            with open(path, "r", encoding="utf-8") as f:
+                return f.read()
+    return "<h1>Erreur: index.html introuvable à la racine ou dans /static</h1>"
 
-@app.get("/manifest.json")
-async def serve_manifest():
-    manifest_path = os.path.join("static", "manifest.json") if os.path.exists("static/manifest.json") else "manifest.json"
-    return FileResponse(manifest_path)
-
-@app.get("/sw.js")
-async def serve_sw():
-    sw_path = os.path.join("static", "sw.js") if os.path.exists("static/sw.js") else "sw.js"
-    return FileResponse(sw_path)
-# --- 3. Endpoints d'Authentification (JWT) ---
+# --- Endpoints d'Authentification ---
 @app.post("/api/auth/register", response_model=schemas.UserOut)
 def register_user(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
     db_user = db.query(models.User).filter(models.User.email == user_in.email).first()
@@ -89,7 +75,6 @@ def login(user_credentials: schemas.UserLogin, db: Session = Depends(get_db)):
         "prenom": user.prenom
     }
 
-# --- 4. Health Check ---
 @app.get("/api/health")
 def health_check(db: Session = Depends(get_db)):
     try:
