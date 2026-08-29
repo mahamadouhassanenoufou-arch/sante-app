@@ -10,6 +10,11 @@ class StatusRdv(str, enum.Enum):
     TERMINE = "TERMINE"
     ANNULE = "ANNULE"
 
+class RoleEnum(str, enum.Enum):
+    PATIENT = "PATIENT"
+    MEDECIN = "MEDECIN"
+    ADMIN = "ADMIN"
+
 class User(Base):
     __tablename__ = "users"
 
@@ -18,7 +23,7 @@ class User(Base):
     prenom = Column(String, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
-    role = Column(String, default="PATIENT")
+    role = Column(Enum(RoleEnum, name="roleenum"), default=RoleEnum.PATIENT)
     telephone = Column(String, nullable=True)
 
 class RendezVous(Base):
@@ -27,7 +32,6 @@ class RendezVous(Base):
     id = Column(Integer, primary_key=True, index=True)
     date_heure = Column(DateTime, default=datetime.utcnow)
     motif = Column(String, nullable=False)
-    # Declaration explicite du type enum PostgreSQL existant
     statut = Column(Enum(StatusRdv, name="statutrdv"), default=StatusRdv.EN_ATTENTE)
 
     patient_id = Column(Integer, ForeignKey("users.id"))

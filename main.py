@@ -110,23 +110,30 @@ def get_medecin_rdv(db: Session = Depends(get_db)):
 
 @app.post("/api/medecin/consultation", response_model=schemas.ConsultationOut)
 def create_consultation(data: schemas.ConsultationCreate, db: Session = Depends(get_db)):
-    rdv = db.query(models.RendezVous).filter(models.RendezVous.id == data.rdv_id).first()
-    if not rdv:
-        raise HTTPException(status_code=404, detail="Rendez-vous introuvable")
+    try:
+        rdv = db.query(models.RendezVous).filter(models.RendezVous.id == data.rdv_id).first()
+        if not rdv:
+            raise HTTPException(status_code=404, detail="Rendez-vous introuvable")
 
-    consultation = models.Consultation(
-        rdv_id=data.rdv_id,
-        symptomes=data.symptomes,
-        diagnostic=data.diagnostic,
-        prescription=data.prescription
-    )
-    rdv.statut = models.StatusRdv.TERMINE
-    
-    db.add(consultation)
-    db.commit()
-    db.refresh(consultation)
-    return consultation
-
+        consultation = models.Consultation(
+            rdv_id=data.rdv_id,
+            symptomes=data.symptomes,
+            diagnostic=data.diagnostic,
+            prescription=data.prescription
+        )
+        
+        # Attribution de l'Enum typée
+        rdv.statut = models.StatusRdv.TERMINE
+        
+        db.add(consultation)
+        db.commit()
+        db.refresh(consultation)
+        return consultation
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Erreur enregistrement consultation: {str(e)}")
 @app.post("/api/dev/seed-rdv")
 def seed_rdv(db: Session = Depends(get_db)):
     try:
