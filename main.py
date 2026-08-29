@@ -89,6 +89,8 @@ def login(user_credentials: schemas.UserLogin, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erreur connexion: {str(e)}")
 
+# (Garder le début du fichier main.py inchangé)
+
 @app.get("/api/medecin/rdv", response_model=List[schemas.RdvOut])
 def get_medecin_rdv(db: Session = Depends(get_db)):
     rdvs = db.query(models.RendezVous).all()
@@ -99,7 +101,7 @@ def get_medecin_rdv(db: Session = Depends(get_db)):
             "id": r.id,
             "date_heure": r.date_heure,
             "motif": r.motif,
-            "statut": str(r.statut),
+            "statut": r.statut.value if hasattr(r.statut, 'value') else str(r.statut),
             "patient_id": r.patient_id,
             "nom_patient": patient.nom if patient else "Inconnu",
             "prenom_patient": patient.prenom if patient else ""
@@ -118,7 +120,7 @@ def create_consultation(data: schemas.ConsultationCreate, db: Session = Depends(
         diagnostic=data.diagnostic,
         prescription=data.prescription
     )
-    rdv.statut = "TERMINE"
+    rdv.statut = models.StatusRdv.TERMINE
     
     db.add(consultation)
     db.commit()
@@ -144,17 +146,17 @@ def seed_rdv(db: Session = Depends(get_db)):
             db.refresh(patient)
 
         if not medecin:
-            return {"error": "Aucun médecin trouvé dans la base de données."}
+            return {"error": "Aucun médecin trouvé."}
 
         rdv1 = models.RendezVous(
             motif="Consultation générale",
-            statut="EN_ATTENTE",
+            statut=models.StatusRdv.EN_ATTENTE,
             patient_id=patient.id,
             medecin_id=medecin.id
         )
         rdv2 = models.RendezVous(
             motif="Suivi bilan de santé",
-            statut="EN_ATTENTE",
+            statut=models.StatusRdv.EN_ATTENTE,
             patient_id=patient.id,
             medecin_id=medecin.id
         )

@@ -1,8 +1,14 @@
 import enum
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Enum
 from sqlalchemy.orm import relationship
 from database import Base
+
+class StatusRdv(str, enum.Enum):
+    EN_ATTENTE = "EN_ATTENTE"
+    CONFIRME = "CONFIRME"
+    TERMINE = "TERMINE"
+    ANNULE = "ANNULE"
 
 class User(Base):
     __tablename__ = "users"
@@ -21,7 +27,8 @@ class RendezVous(Base):
     id = Column(Integer, primary_key=True, index=True)
     date_heure = Column(DateTime, default=datetime.utcnow)
     motif = Column(String, nullable=False)
-    statut = Column(String, default="EN_ATTENTE")
+    # Declaration explicite du type enum PostgreSQL existant
+    statut = Column(Enum(StatusRdv, name="statutrdv"), default=StatusRdv.EN_ATTENTE)
 
     patient_id = Column(Integer, ForeignKey("users.id"))
     medecin_id = Column(Integer, ForeignKey("users.id"))
