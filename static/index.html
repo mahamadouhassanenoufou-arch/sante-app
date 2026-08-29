@@ -2,125 +2,73 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Santé App PWA</title>
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#2563eb">
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #f4f6f8;
-        }
-        .container {
-            max-width: 600px;
-            margin: auto;
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .status-bar {
-            padding: 10px;
-            border-radius: 4px;
-            margin-bottom: 15px;
-            text-align: center;
-            font-weight: bold;
-        }
-        .online { background-color: #d1fae5; color: #065f46; }
-        .offline { background-color: #fee2e2; color: #991b1b; }
-        .form-group {
-            margin-bottom: 15px;
-        }
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-        }
-        input, button {
-            width: 100%;
-            padding: 10px;
-            box-sizing: border-box;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-        }
-        button {
-            background-color: #2563eb;
-            color: white;
-            border: none;
-            cursor: pointer;
-            margin-top: 10px;
-        }
-        button:hover {
-            background-color: #1d4ed8;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h2>Gestion Médicale</h2>
-        <div id="status-indicator" class="status-bar online">Connecté au réseau</div>
-
-        <form id="data-form">
-            <div class="form-group">
-                <label for="title">Titre / Sujet :</label>
-                <input type="text" id="title" required>
-            </div><!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Santé App PWA</title>
-    <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#2563eb">
-
-    <!-- CDN Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-slate-100 text-slate-800 antialiased min-h-screen p-4 flex justify-center items-center">
+<body class="bg-slate-50 text-slate-900 antialiased min-h-screen pb-20 select-none">
 
-    <div class="w-full max-w-md bg-white rounded-2xl shadow-xl p-6 border border-slate-200">
-        
-        <!-- En-tête -->
-        <h2 class="text-2xl font-bold text-center text-slate-900 mb-4">Gestion Médicale</h2>
+    <!-- En-tête Fixe (Header) -->
+    <header class="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-slate-200 px-4 py-3 flex justify-between items-center shadow-sm">
+        <h1 class="text-lg font-bold text-slate-800">Santé App</h1>
+        <div id="status-indicator" class="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
+            En ligne
+        </div>
+    </header>
 
-        <!-- Indicateur de statut (Online / Offline) -->
-        <div id="status-indicator" class="mb-5 p-3 rounded-lg text-center text-sm font-semibold transition-all bg-emerald-100 text-emerald-800">
-            Connecté au réseau
+    <!-- Contenu Principal -->
+    <main class="max-w-md mx-auto p-4 space-y-4">
+
+        <!-- Carte Formulaire -->
+        <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm space-y-4">
+            <h2 class="text-base font-semibold text-slate-700">Nouvelle Saisie</h2>
+            
+            <form id="data-form" class="space-y-3">
+                <div>
+                    <label for="title" class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Titre / Sujet</label>
+                    <input type="text" id="title" required 
+                           class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:ring-2 focus:ring-blue-600 focus:bg-white outline-none transition">
+                </div>
+
+                <div>
+                    <label for="details" class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Détails / Notes</label>
+                    <input type="text" id="details" required 
+                           class="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:ring-2 focus:ring-blue-600 focus:bg-white outline-none transition">
+                </div>
+
+                <!-- Groupe de Boutons d'Action (Hiérarchisés) -->
+                <div class="pt-2 flex gap-3">
+                    <button type="button" onclick="document.getElementById('data-form').reset()"
+                            class="flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 text-sm font-semibold rounded-xl transition">
+                        Annuler
+                    </button>
+                    <button type="submit" 
+                            class="flex-1 py-3 px-4 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-sm font-semibold rounded-xl shadow-md shadow-blue-500/20 transition">
+                        Enregistrer
+                    </button>
+                </div>
+            </form>
         </div>
 
-        <!-- Formulaire -->
-        <form id="data-form" class="space-y-4">
-            <div>
-                <label for="title" class="block text-sm font-medium text-slate-700 mb-1">Titre / Sujet</label>
-                <input type="text" id="title" required 
-                       class="w-full px-4 py-3 rounded-xl border border-slate-300 bg-slate-50 text-base focus:ring-2 focus:ring-blue-600 focus:bg-white outline-none transition">
-            </div>
+    </main>
 
-            <div>
-                <label for="details" class="block text-sm font-medium text-slate-700 mb-1">Détails / Notes</label>
-                <input type="text" id="details" required 
-                       class="w-full px-4 py-3 rounded-xl border border-slate-300 bg-slate-50 text-base focus:ring-2 focus:ring-blue-600 focus:bg-white outline-none transition">
-            </div>
-
-            <button type="submit" 
-                    class="w-full py-3.5 px-4 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white font-semibold rounded-xl shadow-md transition-all duration-150">
-                Enregistrer
-            </button>
-        </form>
-    </div>
-
-    <script src="/static/app.js"></script>
-</body>
-</html>
-            <div class="form-group">
-                <label for="details">Détails / Notes :</label>
-                <input type="text" id="details" required>
-            </div>
-            <button type="submit">Enregistrer</button>
-        </form>
-    </div>
+    <!-- Barre de Navigation Inférieure Fixe (Style Mobile Native) -->
+    <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-6 py-2 flex justify-around items-center z-20">
+        <button class="flex flex-col items-center gap-1 text-blue-600 active:scale-90 transition">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 00-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+            <span class="text-[10px] font-medium">Accueil</span>
+        </button>
+        <button class="flex flex-col items-center gap-1 text-slate-400 hover:text-slate-600 active:scale-90 transition">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+            <span class="text-[10px] font-medium">Dossiers</span>
+        </button>
+        <button class="flex flex-col items-center gap-1 text-slate-400 hover:text-slate-600 active:scale-90 transition">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            <span class="text-[10px] font-medium">Réglages</span>
+        </button>
+    </nav>
 
     <script src="/static/app.js"></script>
 </body>
