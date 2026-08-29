@@ -9,7 +9,6 @@
     <style>
         :root {
             --primary: #2563eb;
-            --primary-dark: #1d4ed8;
             --bg: #f8fafc;
             --card-bg: #ffffff;
             --text-main: #0f172a;
@@ -23,263 +22,236 @@
             margin: 0;
             padding: 0;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            -webkit-tap-highlight-color: transparent;
         }
 
         body {
             background-color: var(--bg);
             color: var(--text-main);
-            min-h-100vh;
-            padding-bottom: 80px;
+            min-height: 100vh;
         }
 
-        /* En-tête */
         header {
-            position: sticky;
-            top: 0;
-            background: rgba(255, 255, 255, 0.9);
-            backdrop-filter: blur(8px);
+            background: white;
             border-bottom: 1px solid var(--border);
             padding: 12px 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            z-index: 10;
         }
 
-        header h1 {
-            font-size: 1.1rem;
-            font-weight: 700;
-        }
-
-        .status-badge {
-            background-color: #d1fae5;
-            color: #065f46;
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-size: 0.75rem;
-            font-weight: 600;
-        }
-
-        /* Container Principal */
         .container {
-            max-width: 480px;
+            max-width: 420px;
             margin: 0 auto;
-            padding: 16px;
+            padding: 20px;
         }
 
-        /* Sélecteur de rôle (Tabs) */
-        .tab-switcher {
-            background-color: #e2e8f0;
-            padding: 4px;
-            border-radius: 12px;
-            display: flex;
-            margin-bottom: 20px;
-        }
-
-        .tab-btn {
-            flex: 1;
-            padding: 10px;
-            border: none;
-            background: transparent;
-            font-size: 0.85rem;
-            font-weight: 600;
-            color: var(--text-muted);
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .tab-btn.active {
-            background: var(--card-bg);
-            color: var(--primary);
-            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
-        }
-
-        /* Cartes d'information */
         .card {
             background: var(--card-bg);
             border-radius: var(--radius);
-            padding: 20px;
+            padding: 24px;
             border: 1px solid var(--border);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            margin-top: 20px;
+        }
+
+        .input-group {
             margin-bottom: 16px;
         }
 
-        .card-patient-banner {
-            background: linear-gradient(135deg, #2563eb, #1d4ed8);
-            color: white;
-            border: none;
-        }
-
-        .card-medecin-banner {
-            background: linear-gradient(135deg, #0f172a, #1e293b);
-            color: white;
-            border: none;
-        }
-
-        .card-subtitle {
-            font-size: 0.75rem;
-            opacity: 0.8;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+        .input-group label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 600;
             margin-bottom: 6px;
+            color: var(--text-muted);
         }
 
-        .card-title {
-            font-size: 1.25rem;
-            font-weight: 700;
-            margin-bottom: 4px;
+        .input-group input, .input-group select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            font-size: 0.95rem;
+            outline: none;
         }
 
-        .card-desc {
-            font-size: 0.85rem;
-            opacity: 0.9;
-        }
-
-        /* Boutons d'Action */
-        .btn-action {
+        .btn {
             width: 100%;
             padding: 14px;
             border: none;
-            border-radius: 12px;
-            font-size: 0.9rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.1s ease, background-color 0.2s;
-        }
-
-        .btn-action:active {
-            transform: scale(0.98);
-        }
-
-        .btn-primary {
+            border-radius: 10px;
             background-color: var(--primary);
             color: white;
-            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
-        }
-
-        .btn-secondary {
-            background-color: #eff6ff;
-            color: var(--primary);
-            border: 1px solid #bfdbfe;
-        }
-
-        .hidden {
-            display: none !important;
-        }
-
-        /* Barre de navigation basse (Mobile Native) */
-        nav.bottom-nav {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: var(--card-bg);
-            border-top: 1px solid var(--border);
-            display: flex;
-            justify-content: space-around;
-            padding: 10px 0;
-            z-index: 20;
-        }
-
-        .nav-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 4px;
-            color: var(--text-muted);
-            font-size: 0.7rem;
+            font-size: 0.95rem;
             font-weight: 600;
-            text-decoration: none;
-            background: none;
-            border: none;
             cursor: pointer;
         }
 
-        .nav-item.active {
+        .btn-outline {
+            background: transparent;
             color: var(--primary);
+            border: 1px solid var(--primary);
+            margin-top: 8px;
         }
+
+        .hidden { display: none !important; }
+
+        .banner-patient { background: linear-gradient(135deg, #2563eb, #1d4ed8); color: white; }
+        .banner-medecin { background: linear-gradient(135deg, #0f172a, #1e293b); color: white; }
     </style>
 </head>
 <body>
 
-    <!-- En-tête -->
     <header>
-        <h1>Santé App</h1>
-        <span id="status-indicator" class="status-badge">Connecté</span>
+        <h1 style="font-size: 1.1rem;">Santé App</h1>
+        <button id="btn-logout" class="hidden" onclick="logout()" style="background:none; border:none; color:red; font-size:0.8rem; cursor:pointer;">Déconnexion</button>
     </header>
 
     <div class="container">
-        <!-- Commutateur Espace Patient / Médecin -->
-        <div class="tab-switcher">
-            <button id="tab-patient" class="tab-btn active" onclick="switchRole('patient')">Espace Patient</button>
-            <button id="tab-medecin" class="tab-btn" onclick="switchRole('medecin')">Espace Médecin</button>
-        </div>
 
-        <!-- VUE ESPACE PATIENT -->
-        <div id="view-patient">
-            <div class="card card-patient-banner">
-                <div class="card-subtitle">Prochain Rendez-vous</div>
-                <div class="card-title">Dr. Abdoulaye</div>
-                <div class="card-desc">Cardiologie • Demain à 09:30</div>
+        <!-- 1. ÉCRAN DE CONNEXION / INSCRIPTION -->
+        <div id="view-auth">
+            <div class="card">
+                <h2 id="auth-title" style="margin-bottom: 16px; font-size: 1.2rem;">Connexion</h2>
+                
+                <form id="form-auth" onsubmit="handleAuth(event)">
+                    <div id="field-name" class="input-group hidden">
+                        <label>Nom & Prénom</label>
+                        <input type="text" id="auth-nom" placeholder="Jean Dupont">
+                    </div>
+
+                    <div class="input-group">
+                        <label>Adresse Email</label>
+                        <input type="email" id="auth-email" required placeholder="nom@exemple.com">
+                    </div>
+
+                    <div class="input-group">
+                        <label>Mot de passe</label>
+                        <input type="password" id="auth-password" required placeholder="••••••••">
+                    </div>
+
+                    <div id="field-role" class="input-group hidden">
+                        <label>Vous êtes ?</label>
+                        <select id="auth-role">
+                            <option value="PATIENT">Patient</option>
+                            <option value="MEDECIN">Médecin</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" id="btn-submit" class="btn">Se connecter</button>
+                </form>
+
+                <button type="button" class="btn btn-outline" onclick="toggleAuthMode()">
+                    <span id="toggle-text">Créer un compte</span>
+                </button>
             </div>
-
-            <button class="btn-action btn-secondary" onclick="alert('Module de prise de RDV')">
-                + Prendre un nouveau rendez-vous
-            </button>
         </div>
 
-        <!-- VUE ESPACE MÉDECIN (Cachée au démarrage) -->
+        <!-- 2. ESPACE PATIENT -->
+        <div id="view-patient" class="hidden">
+            <div class="card banner-patient">
+                <p style="font-size:0.75rem; opacity:0.8;">ESPACE PATIENT</p>
+                <h2 id="patient-welcome" style="margin: 6px 0;">Bonjour</h2>
+                <p style="font-size:0.85rem;">Prochain RDV : Demain à 09:30 avec Dr. Abdoulaye</p>
+            </div>
+            <button class="btn" style="margin-top:16px;" onclick="alert('Module Prise de RDV')">+ Prendre RDV</button>
+        </div>
+
+        <!-- 3. ESPACE MÉDECIN -->
         <div id="view-medecin" class="hidden">
-            <div class="card card-medecin-banner">
-                <div class="card-subtitle">Consultations aujourd'hui</div>
-                <div class="card-title">8 Patients</div>
-                <div class="card-desc">Statut : En cours</div>
+            <div class="card banner-medecin">
+                <p style="font-size:0.75rem; opacity:0.8;">ESPACE MÉDECIN</p>
+                <h2 id="medecin-welcome" style="margin: 6px 0;">Dr.</h2>
+                <p style="font-size:0.85rem;">8 Consultations programmées aujourd'hui</p>
             </div>
-
-            <button class="btn-action btn-primary" onclick="alert('Nouvelle consultation')">
-                + Nouvelle Consultation
-            </button>
+            <button class="btn" style="margin-top:16px;" onclick="alert('Module Consultation')">+ Nouvelle Consultation</button>
         </div>
+
     </div>
 
-    <!-- Barre de Navigation Inférieure -->
-    <nav class="bottom-nav">
-        <button class="nav-item active">
-            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 00-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
-            <span>Accueil</span>
-        </button>
-        <button class="nav-item">
-            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-            <span>Dossiers</span>
-        </button>
-        <button class="nav-item">
-            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
-            <span>Actions</span>
-        </button>
-    </nav>
-
     <script>
-        function switchRole(role) {
-            const viewPatient = document.getElementById('view-patient');
-            const viewMedecin = document.getElementById('view-medecin');
-            const tabPatient = document.getElementById('tab-patient');
-            const tabMedecin = document.getElementById('tab-medecin');
+        let isRegister = false;
 
-            if (role === 'patient') {
-                viewPatient.classList.remove('hidden');
-                viewMedecin.classList.add('hidden');
-                tabPatient.classList.add('active');
-                tabMedecin.classList.remove('active');
+        document.addEventListener('DOMContentLoaded', checkSession);
+
+        function checkSession() {
+            const token = localStorage.getItem('token');
+            const role = localStorage.getItem('role');
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+            if (token && role) {
+                document.getElementById('view-auth').classList.add('hidden');
+                document.getElementById('btn-logout').classList.remove('hidden');
+
+                if (role === 'MEDECIN') {
+                    document.getElementById('view-medecin').classList.remove('hidden');
+                    document.getElementById('medecin-welcome').innerText = `Dr. ${user.nom || ''}`;
+                } else {
+                    document.getElementById('view-patient').classList.remove('hidden');
+                    document.getElementById('patient-welcome').innerText = `Bonjour ${user.prenom || ''}`;
+                }
             } else {
-                viewPatient.classList.add('hidden');
-                viewMedecin.classList.remove('hidden');
-                tabMedecin.classList.add('active');
-                tabPatient.classList.remove('active');
+                document.getElementById('view-auth').classList.remove('hidden');
+                document.getElementById('view-patient').classList.add('hidden');
+                document.getElementById('view-medecin').classList.add('hidden');
+                document.getElementById('btn-logout').classList.add('hidden');
             }
         }
+
+        function toggleAuthMode() {
+            isRegister = !isRegister;
+            document.getElementById('auth-title').innerText = isRegister ? "Créer un compte" : "Connexion";
+            document.getElementById('btn-submit').innerText = isRegister ? "S'inscrire" : "Se connecter";
+            document.getElementById('toggle-text').innerText = isRegister ? "Déjà un compte ? Se connecter" : "Créer un compte";
+            
+            document.getElementById('field-name').classList.toggle('hidden', !isRegister);
+            document.getElementById('field-role').classList.toggle('hidden', !isRegister);
+        }
+
+        async function handleAuth(e) {
+            e.preventDefault();
+            const email = document.getElementById('auth-email').value;
+            const password = document.getElementById('auth-password').value;
+
+            if (isRegister) {
+                const nom = document.getElementById('auth-nom').value;
+                const role = document.getElementById('auth-role').value;
+                const res = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ email, password, nom, prenom: "", role })
+                });
+
+                if (res.ok) {
+                    alert("Compte créé ! Veuillez vous connecter.");
+                    toggleAuthMode();
+                } else {
+                    const err = await res.json();
+                    alert(err.detail || "Erreur d'inscription");
+                }
+            } else {
+                const res = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ email, password })
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    localStorage.setItem('token', data.access_token);
+                    localStorage.setItem('role', data.role);
+                    localStorage.setItem('user', JSON.stringify(data));
+                    checkSession();
+                } else {
+                    alert("Email ou mot de passe incorrect");
+                }
+            }
+        }
+
+        function logout() {
+            localStorage.clear();
+            checkSession();
+        }
     </script>
-    <script src="/static/app.js"></script>
 </body>
 </html>
