@@ -3,158 +3,78 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestion Santé - Application Multi-Rôles</title>
-    <!-- Balises PWA -->
-    <link rel="manifest" href="/static/manifest.json">
+    <title>Santé App PWA</title>
+    <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#2563eb">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/static/sw.js');
-        });
-      }
-    </script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f6f8;
+        }
+        .container {
+            max-width: 600px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status-bar {
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            text-align: center;
+            font-weight: bold;
+        }
+        .online { background-color: #d1fae5; color: #065f46; }
+        .offline { background-color: #fee2e2; color: #991b1b; }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, button {
+            width: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #1d4ed8;
+        }
+    </style>
 </head>
-<body class="bg-slate-100 font-sans min-h-screen">
-    <div class="max-w-md mx-auto p-4 space-y-4">
-        <!-- En-tête -->
-        <header class="text-center my-4">
-            <h1 class="text-2xl font-bold text-blue-600">Santé App</h1>
-            <p class="text-sm text-slate-500">Plateforme de Gestion Médicale</p>
-        </header>
+<body>
+    <div class="container">
+        <h2>Gestion Médicale</h2>
+        <div id="status-indicator" class="status-bar online">Connecté au réseau</div>
 
-        <!-- Formulaire de Connexion -->
-        <section id="auth-section" class="bg-white p-6 rounded-xl shadow-md space-y-4">
-            <h2 class="text-xl font-semibold text-slate-800">Se connecter</h2>
-            <div>
-                <label class="block text-sm font-medium text-slate-700">Email</label>
-                <input type="email" id="email" class="w-full mt-1 p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+        <form id="data-form">
+            <div class="form-group">
+                <label for="title">Titre / Sujet :</label>
+                <input type="text" id="title" required>
             </div>
-            <div>
-                <label class="block text-sm font-medium text-slate-700">Mot de passe</label>
-                <input type="password" id="password" class="w-full mt-1 p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+            <div class="form-group">
+                <label for="details">Détails / Notes :</label>
+                <input type="text" id="details" required>
             </div>
-            <button onclick="login()" class="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition">Connexion</button>
-            <p id="auth-error" class="text-red-500 text-sm hidden text-center"></p>
-        </section>
-
-        <!-- Tableau de bord principal -->
-        <section id="dashboard-section" class="hidden space-y-6">
-            <!-- Barre de profil utilisateur -->
-            <div class="bg-white p-4 rounded-xl shadow-md flex justify-between items-center">
-                <div>
-                    <h3 id="user-name" class="font-bold text-slate-800"></h3>
-                    <span id="user-role" class="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full font-medium"></span>
-                </div>
-                <button onclick="logout()" class="text-sm text-red-500 font-medium">Déconnexion</button>
-            </div>
-
-            <!-- ================= VUE ADMIN ================= -->
-            <div id="admin-view" class="hidden space-y-6">
-                <!-- Ajouter un Médecin -->
-                <div class="bg-white p-6 rounded-xl shadow-md space-y-4 border-l-4 border-purple-500">
-                    <h3 class="font-semibold text-slate-800">Ajouter un nouveau Médecin</h3>
-                    <div>
-                        <label class="block text-sm text-slate-700">Nom</label>
-                        <input type="text" id="admin-doc-nom" class="w-full mt-1 p-2 border rounded-lg">
-                    </div>
-                    <div>
-                        <label class="block text-sm text-slate-700">Prénom</label>
-                        <input type="text" id="admin-doc-prenom" class="w-full mt-1 p-2 border rounded-lg">
-                    </div>
-                    <div>
-                        <label class="block text-sm text-slate-700">Spécialité</label>
-                        <input type="text" id="admin-doc-specialite" placeholder="Ex: Cardiologie" class="w-full mt-1 p-2 border rounded-lg">
-                    </div>
-                    <div>
-                        <label class="block text-sm text-slate-700">Email</label>
-                        <input type="email" id="admin-doc-email" class="w-full mt-1 p-2 border rounded-lg">
-                    </div>
-                    <button onclick="adminAddDoctor()" class="w-full bg-purple-600 text-white py-2 rounded-lg font-semibold hover:bg-purple-700 transition">Créer le Médecin</button>
-                </div>
-
-                <!-- Ajouter des Disponibilités -->
-                <div class="bg-white p-6 rounded-xl shadow-md space-y-4 border-l-4 border-purple-500">
-                    <h3 class="font-semibold text-slate-800">Ajouter des créneaux de disponibilité</h3>
-                    <div>
-                        <label class="block text-sm text-slate-700">ID Médecin</label>
-                        <input type="number" id="admin-dispo-doc-id" class="w-full mt-1 p-2 border rounded-lg">
-                    </div>
-                    <div>
-                        <label class="block text-sm text-slate-700">Jour de la semaine</label>
-                        <input type="text" id="admin-dispo-jour" placeholder="Ex: Lundi" class="w-full mt-1 p-2 border rounded-lg">
-                    </div>
-                    <div class="grid grid-cols-2 gap-2">
-                        <div>
-                            <label class="block text-sm text-slate-700">Début</label>
-                            <input type="text" id="admin-dispo-debut" placeholder="08:00" class="w-full mt-1 p-2 border rounded-lg">
-                        </div>
-                        <div>
-                            <label class="block text-sm text-slate-700">Fin</label>
-                            <input type="text" id="admin-dispo-fin" placeholder="17:00" class="w-full mt-1 p-2 border rounded-lg">
-                        </div>
-                    </div>
-                    <button onclick="adminAddDispo()" class="w-full bg-purple-600 text-white py-2 rounded-lg font-semibold hover:bg-purple-700 transition">Ajouter la disponibilité</button>
-                </div>
-            </div>
-
-            <!-- ================= VUE MÉDECIN ================= -->
-            <div id="medecin-view" class="hidden space-y-6">
-                <!-- Ajouter une Note de Consultation / Diagnostic -->
-                <div class="bg-white p-6 rounded-xl shadow-md space-y-4 border-l-4 border-amber-500">
-                    <h3 class="font-semibold text-slate-800">Finaliser un Rendez-vous</h3>
-                    <div>
-                        <label class="block text-sm text-slate-700">ID Rendez-vous</label>
-                        <input type="number" id="doc-note-rdv-id" class="w-full mt-1 p-2 border rounded-lg">
-                    </div>
-                    <div>
-                        <label class="block text-sm text-slate-700">Diagnostic</label>
-                        <textarea id="doc-note-diag" rows="2" class="w-full mt-1 p-2 border rounded-lg" placeholder="Observations et diagnostic..."></textarea>
-                    </div>
-                    <div>
-                        <label class="block text-sm text-slate-700">Prescription (optionnel)</label>
-                        <textarea id="doc-note-presc" rows="2" class="w-full mt-1 p-2 border rounded-lg" placeholder="Ordonnance ou traitement..."></textarea>
-                    </div>
-                    <button onclick="docSaveNote()" class="w-full bg-amber-600 text-white py-2 rounded-lg font-semibold hover:bg-amber-700 transition">Enregistrer & Clôturer RDV</button>
-                </div>
-            </div>
-
-            <!-- ================= VUE PATIENT / PARTAGÉ ================= -->
-            <div id="patient-view" class="space-y-6">
-                <!-- Formulaire Prise de Rendez-vous -->
-                <div id="rdv-form-card" class="bg-white p-6 rounded-xl shadow-md space-y-4">
-                    <h3 class="font-semibold text-slate-800">Prendre un rendez-vous</h3>
-                    <div>
-                        <label class="block text-sm text-slate-700">ID Médecin</label>
-                        <input type="number" id="rdv-medecin-id" class="w-full mt-1 p-2 border rounded-lg">
-                    </div>
-                    <div>
-                        <label class="block text-sm text-slate-700">Date et Heure</label>
-                        <input type="datetime-local" id="rdv-date" class="w-full mt-1 p-2 border rounded-lg">
-                    </div>
-                    <div>
-                        <label class="block text-sm text-slate-700">Motif</label>
-                        <input type="text" id="rdv-motif" placeholder="Ex: Consultation générale" class="w-full mt-1 p-2 border rounded-lg">
-                    </div>
-                    <button onclick="createRendezVous()" class="w-full bg-green-600 text-white py-2 rounded-lg font-semibold hover:bg-green-700 transition">Réserver</button>
-                </div>
-            </div>
-
-            <!-- Liste des Médecins & Disponibilités -->
-            <div class="bg-white p-6 rounded-xl shadow-md space-y-4">
-                <h3 class="font-semibold text-slate-800">Médecins & Disponibilités</h3>
-                <ul id="medecins-list" class="divide-y text-sm"></ul>
-            </div>
-
-            <!-- Mes Rendez-vous & Notes -->
-            <div class="bg-white p-6 rounded-xl shadow-md space-y-4">
-                <h3 class="font-semibold text-slate-800">Mes Rendez-vous</h3>
-                <ul id="rdv-list" class="divide-y text-sm"></ul>
-            </div>
-        </section>
+            <button type="submit">Enregistrer</button>
+        </form>
     </div>
 
-    <script src="app.js"></script>
+    <script src="/static/app.js"></script>
 </body>
 </html>
