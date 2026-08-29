@@ -34,26 +34,22 @@ app.add_middleware(
 if os.path.exists("static"):
     app.mount("/static", StaticFiles(directory="static"), name="static")
 
-@app.get("/", response_class=FileResponse)
+@app.get("/")
 async def serve_index():
-    """Sert l'interface HTML principale."""
     index_path = os.path.join("static", "index.html") if os.path.exists("static/index.html") else "index.html"
     if not os.path.exists(index_path):
         raise HTTPException(status_code=404, detail="Page introuvable")
     return FileResponse(index_path)
 
-@app.get("/manifest.json", response_class=FileResponse)
+@app.get("/manifest.json")
 async def serve_manifest():
-    """Sert le fichier manifest PWA."""
     manifest_path = os.path.join("static", "manifest.json") if os.path.exists("static/manifest.json") else "manifest.json"
     return FileResponse(manifest_path)
 
-@app.get("/sw.js", response_class=FileResponse)
+@app.get("/sw.js")
 async def serve_sw():
-    """Sert le Service Worker."""
     sw_path = os.path.join("static", "sw.js") if os.path.exists("static/sw.js") else "sw.js"
     return FileResponse(sw_path)
-
 # --- 3. Endpoints d'Authentification (JWT) ---
 @app.post("/api/auth/register", response_model=schemas.UserOut)
 def register_user(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
