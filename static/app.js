@@ -99,3 +99,13 @@ async function syncPendingData() {
         console.log('Toutes les données hors-ligne ont été synchronisées avec succès.');
     }
 }
+function updateOnlineStatus() {
+    if (navigator.onLine) {
+        statusIndicator.textContent = "Connecté au réseau";
+        statusIndicator.className = "mb-5 p-3 rounded-lg text-center text-sm font-semibold transition-all bg-emerald-100 text-emerald-800";
+        syncPendingData();
+    } else {
+        statusIndicator.textContent = "Hors-ligne (Sauvegarde locale activée)";
+        statusIndicator.className = "mb-5 p-3 rounded-lg text-center text-sm font-semibold transition-all bg-rose-100 text-rose-800";
+    }
+}

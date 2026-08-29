@@ -66,7 +66,54 @@
             <div class="form-group">
                 <label for="title">Titre / Sujet :</label>
                 <input type="text" id="title" required>
+            </div><!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Santé App PWA</title>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#2563eb">
+
+    <!-- CDN Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 text-slate-800 antialiased min-h-screen p-4 flex justify-center items-center">
+
+    <div class="w-full max-w-md bg-white rounded-2xl shadow-xl p-6 border border-slate-200">
+        
+        <!-- En-tête -->
+        <h2 class="text-2xl font-bold text-center text-slate-900 mb-4">Gestion Médicale</h2>
+
+        <!-- Indicateur de statut (Online / Offline) -->
+        <div id="status-indicator" class="mb-5 p-3 rounded-lg text-center text-sm font-semibold transition-all bg-emerald-100 text-emerald-800">
+            Connecté au réseau
+        </div>
+
+        <!-- Formulaire -->
+        <form id="data-form" class="space-y-4">
+            <div>
+                <label for="title" class="block text-sm font-medium text-slate-700 mb-1">Titre / Sujet</label>
+                <input type="text" id="title" required 
+                       class="w-full px-4 py-3 rounded-xl border border-slate-300 bg-slate-50 text-base focus:ring-2 focus:ring-blue-600 focus:bg-white outline-none transition">
             </div>
+
+            <div>
+                <label for="details" class="block text-sm font-medium text-slate-700 mb-1">Détails / Notes</label>
+                <input type="text" id="details" required 
+                       class="w-full px-4 py-3 rounded-xl border border-slate-300 bg-slate-50 text-base focus:ring-2 focus:ring-blue-600 focus:bg-white outline-none transition">
+            </div>
+
+            <button type="submit" 
+                    class="w-full py-3.5 px-4 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white font-semibold rounded-xl shadow-md transition-all duration-150">
+                Enregistrer
+            </button>
+        </form>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
             <div class="form-group">
                 <label for="details">Détails / Notes :</label>
                 <input type="text" id="details" required>
