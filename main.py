@@ -1,41 +1,60 @@
+import os
 from fastapi import FastAPI, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from jose import JWTError, jwt
+from sqlalchemy import text
 
+# Modules locaux
 import models
 import schemas
 import security
 from database import get_db, engine
 
-# Création automatique des tables
+# Création automatique des tables dans PostgreSQL au démarrage
 models.Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Santé App API", version="2.0")
+app = FastAPI(
+    title="Santé App API",
+    version="2.0",
+    description="Backend FastAPI & PWA pour l'application Santé App"
+)
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+# --- 1. Middleware CORS ---
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-# --- Dépendance pour récupérer l'utilisateur connecté via JWT ---
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Identifiants invalides ou session expirée",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    try:
-        payload = jwt.decode(token, security.SECRET_KEY, algorithms=[security.ALGORITHM])
-        email: str = payload.get("sub")
-        if email is None:
-            raise credentials_exception
-    except JWTError:
-        raise credentials_exception
+# --- 2. Servir l'interface PWA & Fichiers Statiques ---
+if os.path.exists("static"):
+    app.mount("/static", StaticFiles(directory="static"), name="static")
 
-    user = db.query(models.User).filter(models.User.email == email).first()
-    if user is None:
-        raise credentials_exception
-    return user
+@app.get("/", response_class=FileResponse)
+async def serve_index():
+    """Sert l'interface HTML principale."""
+    index_path = os.path.join("static", "index.html") if os.path.exists("static/index.html") else "index.html"
+    if not os.path.exists(index_path):
+        raise HTTPException(status_code=404, detail="Page introuvable")
+    return FileResponse(index_path)
 
-# --- Endpoint Inscription ---
+@app.get("/manifest.json", response_class=FileResponse)
+async def serve_manifest():
+    """Sert le fichier manifest PWA."""
+    manifest_path = os.path.join("static", "manifest.json") if os.path.exists("static/manifest.json") else "manifest.json"
+    return FileResponse(manifest_path)
+
+@app.get("/sw.js", response_class=FileResponse)
+async def serve_sw():
+    """Sert le Service Worker."""
+    sw_path = os.path.join("static", "sw.js") if os.path.exists("static/sw.js") else "sw.js"
+    return FileResponse(sw_path)
+
+# --- 3. Endpoints d'Authentification (JWT) ---
 @app.post("/api/auth/register", response_model=schemas.UserOut)
 def register_user(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
     db_user = db.query(models.User).filter(models.User.email == user_in.email).first()
@@ -56,7 +75,6 @@ def register_user(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
     db.refresh(new_user)
     return new_user
 
-# --- Endpoint Connexion (génère le JWT) ---
 @app.post("/api/auth/login", response_model=schemas.Token)
 def login(user_credentials: schemas.UserLogin, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.email == user_credentials.email).first()
@@ -75,7 +93,11 @@ def login(user_credentials: schemas.UserLogin, db: Session = Depends(get_db)):
         "prenom": user.prenom
     }
 
-# --- Endpoint Protegé de profil ---
-@app.get("/api/auth/me", response_model=schemas.UserOut)
-def read_users_me(current_user: models.User = Depends(get_current_user)):
-    return current_user
+# --- 4. Health Check ---
+@app.get("/api/health")
+def health_check(db: Session = Depends(get_db)):
+    try:
+        db.execute(text("SELECT 1"))
+        return {"status": "ok", "database": "connected"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erreur DB: {str(e)}")
