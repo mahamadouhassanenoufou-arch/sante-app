@@ -16,6 +16,14 @@ from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
 from database import engine, get_db
 import models
 
+# Monter le dossier static
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Rediriger la racine '/' et la route '/app' vers index.html
+@app.get("/")
+@app.get("/app")
+def read_index():
+    return FileResponse("static/index.html")
 # ----------------------------------------------------
 # 1. Configuration Sécurité & JWT
 # ----------------------------------------------------

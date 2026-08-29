@@ -15,3 +15,10 @@ try:
         print("Connexion à PostgreSQL réussie avec succès !")
 except Exception as e:
     print(f"Erreur de connexion : {e}")
+
+    def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
