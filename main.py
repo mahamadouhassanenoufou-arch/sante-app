@@ -1,7 +1,6 @@
 import os
 from datetime import datetime, timedelta
 from typing import List, Optional
-
 from fastapi import FastAPI, Depends, HTTPException, status, BackgroundTasks
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,14 +11,10 @@ from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from jose import JWTError, jwt
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
-
 from database import engine, get_db
-import models
-
-# Monter le dossier static
+from models import Patient as User
+app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
-
-# Rediriger la racine '/' et la route '/app' vers index.html
 @app.get("/")
 @app.get("/app")
 def read_index():
