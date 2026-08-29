@@ -1,37 +1,62 @@
-from pydantic import BaseModel, EmailStr
-from typing import Optional
-from models import UserRole
+from pydantic import BaseModel
+from datetime import datetime
+from typing import Optional, List
 
-# Inscription utilisateur
+# --- Vos schémas existants ---
 class UserCreate(BaseModel):
     nom: str
     prenom: str
-    email: EmailStr
+    email: str
     password: str
-    role: UserRole = UserRole.PATIENT
-    telephone: Optional[str] = None
+    role: str = "PATIENT"
 
-# Connexion utilisateur
-class UserLogin(BaseModel):
-    email: EmailStr
-    password: str
-
-# Format de réponse Token JWT
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-    role: str
-    nom: str
-    prenom: str
-
-# Données retournées du profil
 class UserOut(BaseModel):
     id: int
     nom: str
     prenom: str
-    email: EmailStr
-    role: UserRole
-    telephone: Optional[str] = None
+    email: str
+    role: str
+
+    class Config:
+        from_attributes = True
+
+class UserLogin(BaseModel):
+    email: str
+    password: str
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+    role: str
+    nom: Optional[str] = None
+    prenom: Optional[str] = None
+
+# --- Nouveaux schémas Médecin ---
+class RdvOut(BaseModel):
+    id: int
+    date_heure: datetime
+    motif: str
+    statut: str
+    patient_id: int
+    nom_patient: Optional[str] = None
+    prenom_patient: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+class ConsultationCreate(BaseModel):
+    rdv_id: int
+    symptomes: str
+    diagnostic: str
+    prescription: str
+
+class ConsultationOut(BaseModel):
+    id: int
+    date: datetime
+    symptomes: str
+    diagnostic: str
+    prescription: str
+    rdv_id: int
 
     class Config:
         from_attributes = True

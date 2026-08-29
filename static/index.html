@@ -69,28 +69,29 @@
         document.addEventListener('DOMContentLoaded', checkSession);
 
         function checkSession() {
-            const token = localStorage.getItem('token');
-            const role = localStorage.getItem('role');
-            const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const token = localStorage.getItem('token');
+    const role = localStorage.getItem('role');
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
 
-            if (token && role) {
-                document.getElementById('view-auth').classList.add('hidden');
-                document.getElementById('btn-logout').classList.remove('hidden');
+    if (token && role) {
+        document.getElementById('view-auth').classList.add('hidden');
+        document.getElementById('btn-logout').classList.remove('hidden');
 
-                if (role === 'MEDECIN') {
-                    document.getElementById('view-medecin').classList.remove('hidden');
-                    document.getElementById('medecin-welcome').innerText = `Dr. ${user.nom || ''}`;
-                } else {
-                    document.getElementById('view-patient').classList.remove('hidden');
-                    document.getElementById('patient-welcome').innerText = `Bonjour ${user.prenom || user.nom || ''}`;
-                }
-            } else {
-                document.getElementById('view-auth').classList.remove('hidden');
-                document.getElementById('view-patient').classList.add('hidden');
-                document.getElementById('view-medecin').classList.add('hidden');
-                document.getElementById('btn-logout').classList.add('hidden');
-            }
+        if (role === 'MEDECIN') {
+            document.getElementById('view-medecin').classList.remove('hidden');
+            document.getElementById('medecin-welcome').innerText = `Dr. ${user.prenom || ''} ${user.nom || ''}`;
+            loadMedecinData(); // Charge les RDV dès l'affichage
+        } else {
+            document.getElementById('view-patient').classList.remove('hidden');
+            document.getElementById('patient-welcome').innerText = `Bonjour ${user.prenom || user.nom || ''}`;
         }
+    } else {
+        document.getElementById('view-auth').classList.remove('hidden');
+        document.getElementById('view-patient').classList.add('hidden');
+        document.getElementById('view-medecin').classList.add('hidden');
+        document.getElementById('btn-logout').classList.add('hidden');
+    }
+}
 
         function toggleAuthMode() {
             isRegister = !isRegister;
