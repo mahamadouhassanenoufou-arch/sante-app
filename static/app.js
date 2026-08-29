@@ -2,110 +2,110 @@
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js')
-            .then(reg => console.log('Service Worker enregistré sur :', reg.scope))
+            .then(reg => console.log('Service Worker PWA actif :', reg.scope))
             .catch(err => console.error('Erreur Service Worker :', err));
     });
 }
 
-// --- 2. Gestion de l'état du réseau (Online / Offline) ---
-const statusIndicator = document.getElementById('status-indicator');
+// --- 2. Chargement des données dynamiques depuis FastAPI ---
+document.addEventListener('DOMContentLoaded', () => {
+    loadPatientData();
+});
 
-function updateOnlineStatus() {
-    if (navigator.onLine) {
-        statusIndicator.textContent = "Connecté au réseau";
-        statusIndicator.className = "status-bar online";
-        syncPendingData(); // Tente de synchroniser dès que le réseau revient
-    } else {
-        statusIndicator.textContent = "Hors-ligne (Sauvegarde locale activée)";
-        statusIndicator.className = "status-bar offline";
+async function loadPatientData() {
+    try {
+        const response = await fetch('/api/patient/dashboard');
+        if (response.ok) {
+            const data = await response.json();
+            console.log('Données Patient chargées :', data);
+            // Possibilité d'injecter data.prochain_rdv directement dans le DOM
+        }
+    } catch (error) {
+        console.warn('Mode hors-ligne : données locales affichées.');
     }
 }
 
-window.addEventListener('online', updateOnlineStatus);
-window.addEventListener('offline', updateOnlineStatus);
-updateOnlineStatus(); // Vérification initiale au chargement
+async function loadMedecinData() {
+    try {
+        const response = await fetch('/api/medecin/dashboard');
+        if (response.ok) {
+            const data = await response.json();
+            console.log('Données Médecin chargées :', data);
+        }
+    } catch (error) {
+        console.warn('Mode hors-ligne : données locales affichées.');
+    }
+}
 
-// --- 3. Soumission du formulaire et stockage hors-ligne ---
-const dataForm = document.getElementById('data-form');
+// --- 3. Gestion du changement d'onglet ---
+function switchRole(role) {
+    const viewPatient = document.getElementById('view-patient');
+    const viewMedecin = document.getElementById('view-medecin');
+    const tabPatient = document.getElementById('tab-patient');
+    const tabMedecin = document.getElementById('tab-medecin');
 
-dataForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
+    if (role === 'patient') {
+        viewPatient.classList.remove('hidden');
+        viewMedecin.classList.add('hidden');
+        tabPatient.classList.add('active');
+        tabMedecin.classList.remove('active');
+        loadPatientData();
+    } else {
+        viewPatient.classList.add('hidden');
+        viewMedecin.classList.remove('hidden');
+        tabMedecin.classList.add('active');
+        tabPatient.classList.remove('active');
+        loadMedecinData();
+    }
+}
+
+// --- 4. Modales de création rapides ---
+async function handleNewRdv() {
+    const medecin = prompt("Nom du médecin ou spécialité :");
+    if (!medecin) return;
 
     const payload = {
-        title: document.getElementById('title').value,
-        details: document.getElementById('details').value,
-        timestamp: new Date().toISOString()
+        type: "rendez_vous",
+        medecin: medecin,
+        date: new Date().toISOString()
     };
 
-    if (navigator.onLine) {
-        // Envoi direct au serveur FastAPI
-        await sendDataToServer(payload);
-    } else {
-        // Sauvegarde dans le localStorage si hors-ligne
-        saveOfflineData(payload);
-        alert('Réseau indisponible : les données ont été enregistrées localement et seront envoyées dès le retour du réseau.');
-    }
+    await sendPayload(payload);
+}
 
-    dataForm.reset();
-});
+async function handleNewConsultation() {
+    const patientName = prompt("Nom du patient :");
+    const notes = prompt("Notes de consultation / Diagnostic :");
+    if (!patientName) return;
 
-// --- 4. Fonctions d'envoi et de synchronisation ---
-async function sendDataToServer(data) {
+    const payload = {
+        type: "consultation",
+        patient: patientName,
+        notes: notes,
+        date: new Date().toISOString()
+    };
+
+    await sendPayload(payload);
+}
+
+async function sendPayload(payload) {
     try {
         const response = await fetch('/api/data', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(data)
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
         });
 
-        if (!response.ok) {
-            throw new Error(`Erreur serveur: ${response.status}`);
+        if (response.ok) {
+            alert("Enregistrement réussi !");
+        } else {
+            throw new Error("Erreur serveur");
         }
-
-        console.log('Données transmises avec succès au backend !');
-        return true;
     } catch (error) {
-        console.error('Échec de l\'envoi réseau, sauvegarde en local :', error);
-        saveOfflineData(data);
-        return false;
-    }
-}
-
-function saveOfflineData(data) {
-    const pendingData = JSON.parse(localStorage.getItem('pending_requests') || '[]');
-    pendingData.push(data);
-    localStorage.setItem('pending_requests', JSON.stringify(pendingData));
-}
-
-async function syncPendingData() {
-    const pendingData = JSON.parse(localStorage.getItem('pending_requests') || '[]');
-    if (pendingData.length === 0) return;
-
-    console.log(`Tentative de synchronisation de ${pendingData.length} élément(s)...`);
-    const remainingData = [];
-
-    for (const item of pendingData) {
-        const success = await sendDataToServer(item);
-        if (!success) {
-            remainingData.push(item);
-        }
-    }
-
-    localStorage.setItem('pending_requests', JSON.stringify(remainingData));
-
-    if (remainingData.length === 0) {
-        console.log('Toutes les données hors-ligne ont été synchronisées avec succès.');
-    }
-}
-function updateOnlineStatus() {
-    if (navigator.onLine) {
-        statusIndicator.textContent = "Connecté au réseau";
-        statusIndicator.className = "mb-5 p-3 rounded-lg text-center text-sm font-semibold transition-all bg-emerald-100 text-emerald-800";
-        syncPendingData();
-    } else {
-        statusIndicator.textContent = "Hors-ligne (Sauvegarde locale activée)";
-        statusIndicator.className = "mb-5 p-3 rounded-lg text-center text-sm font-semibold transition-all bg-rose-100 text-rose-800";
+        // Sauvegarde hors-ligne temporaire
+        const pending = JSON.parse(localStorage.getItem('pending_requests') || '[]');
+        pending.push(payload);
+        localStorage.setItem('pending_requests', JSON.stringify(pending));
+        alert("Hors-ligne : enregistrement sauvegardé localement.");
     }
 }
