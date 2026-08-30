@@ -89,174 +89,188 @@
         </div>
     </div>
 
-    <script>
-        let isRegister = false;
+   <script>
+    let isRegister = false;
 
-        function checkAuth() {
-            const token = localStorage.getItem('token');
-            const role = localStorage.getItem('role');
-            const nom = localStorage.getItem('nom');
-            const prenom = localStorage.getItem('prenom');
+    function checkAuth() {
+        const token = localStorage.getItem('token');
+        const role = localStorage.getItem('role');
+        const nom = localStorage.getItem('nom') || '';
+        const prenom = localStorage.getItem('prenom') || '';
 
-            if (token) {
-                document.getElementById('auth-container').classList.add('hidden');
-                document.getElementById('user-info').classList.remove('hidden');
-                document.getElementById('user-display').innerText = `${role === 'MEDECIN' ? 'Dr. ' : ''}${prenom} ${nom}`;
+        // Masquer tous les conteneurs par défaut
+        document.getElementById('auth-container').classList.add('hidden');
+        document.getElementById('user-info').classList.add('hidden');
+        document.getElementById('medecin-dashboard').classList.add('hidden');
+        document.getElementById('patient-dashboard').classList.add('hidden');
 
-                if (role === 'MEDECIN') {
-                    document.getElementById('medecin-dashboard').classList.remove('hidden');
-                    document.getElementById('patient-dashboard').classList.add('hidden');
-                    loadMedecinData();
+        if (token && role) {
+            document.getElementById('user-info').classList.remove('hidden');
+            document.getElementById('user-display').innerText = `${role === 'MEDECIN' ? 'Dr. ' : ''}${prenom} ${nom}`.trim();
+
+            if (role === 'MEDECIN') {
+                document.getElementById('medecin-dashboard').classList.remove('hidden');
+                loadMedecinData();
+            } else {
+                document.getElementById('patient-dashboard').classList.remove('hidden');
+                loadPatientData();
+            }
+        } else {
+            // Si pas de session valide, afficher le formulaire de connexion
+            document.getElementById('auth-container').classList.remove('hidden');
+        }
+    }
+
+    function toggleAuthMode() {
+        isRegister = !isRegister;
+        document.getElementById('auth-title').innerText = isRegister ? "Inscription" : "Connexion";
+        document.getElementById('auth-btn').innerText = isRegister ? "S'inscrire" : "Se connecter";
+        document.getElementById('toggle-auth').innerText = isRegister ? "Déjà un compte ? Se connecter" : "Pas encore de compte ? S'inscrire";
+        document.getElementById('name-fields').classList.toggle('hidden', !isRegister);
+    }
+
+    async function handleAuth(e) {
+        e.preventDefault();
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+
+        const endpoint = isRegister ? '/api/auth/register' : '/api/auth/login';
+        const body = isRegister ? {
+            email, password,
+            nom: document.getElementById('nom').value,
+            prenom: document.getElementById('prenom').value,
+            role: document.getElementById('role').value
+        } : { email, password };
+
+        try {
+            const res = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            const data = await res.json();
+            if (res.ok) {
+                if (isRegister) {
+                    alert("Compte créé avec succès ! Connectez-vous.");
+                    toggleAuthMode();
                 } else {
-                    document.getElementById('patient-dashboard').classList.remove('hidden');
-                    document.getElementById('medecin-dashboard').classList.add('hidden');
+                    localStorage.setItem('token', data.access_token);
+                    localStorage.setItem('role', data.role);
+                    localStorage.setItem('nom', data.nom || '');
+                    localStorage.setItem('prenom', data.prenom || '');
+                    checkAuth();
                 }
             } else {
-                document.getElementById('auth-container').classList.remove('hidden');
-                document.getElementById('user-info').classList.add('hidden');
-                document.getElementById('medecin-dashboard').classList.add('hidden');
-                document.getElementById('patient-dashboard').classList.add('hidden');
+                alert(data.detail || "Erreur lors de l'authentification.");
             }
+        } catch (err) {
+            alert("Erreur réseau: " + err.message);
         }
+    }
 
-        function toggleAuthMode() {
-            isRegister = !isRegister;
-            document.getElementById('auth-title').innerText = isRegister ? "Inscription" : "Connexion";
-            document.getElementById('auth-btn').innerText = isRegister ? "S'inscrire" : "Se connecter";
-            document.getElementById('toggle-auth').innerText = isRegister ? "Déjà un compte ? Se connecter" : "Pas encore de compte ? S'inscrire";
-            document.getElementById('name-fields').classList.toggle('hidden', !isRegister);
-        }
-
-        async function handleAuth(e) {
-            e.preventDefault();
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-
-            const endpoint = isRegister ? '/api/auth/register' : '/api/auth/login';
-            const body = isRegister ? {
-                email, password,
-                nom: document.getElementById('nom').value,
-                prenom: document.getElementById('prenom').value,
-                role: document.getElementById('role').value
-            } : { email, password };
-
-            try {
-                const res = await fetch(endpoint, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(body)
-                });
-                const data = await res.json();
-                if (res.ok) {
-                    if (isRegister) {
-                        alert("Compte créé avec succès ! Connectez-vous.");
-                        toggleAuthMode();
-                    } else {
-                        localStorage.setItem('token', data.access_token);
-                        localStorage.setItem('role', data.role);
-                        localStorage.setItem('nom', data.nom);
-                        localStorage.setItem('prenom', data.prenom);
-                        checkAuth();
-                    }
-                } else {
-                    alert(data.detail || "Erreur lors de l'authentification.");
-                }
-            } catch (err) {
-                alert("Erreur réseau: " + err.message);
-            }
-        }
-
-        function logout() {
-            localStorage.clear();
-            checkAuth();
-        }
-
-        async function loadMedecinData() {
-            const token = localStorage.getItem('token');
-            try {
-                const res = await fetch('/api/medecin/rdv', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (!res.ok) return;
-
-                const rdvs = await res.json();
-                const listContainer = document.getElementById('rdv-list');
-                listContainer.innerHTML = '';
-
-                if (rdvs.length === 0) {
-                    listContainer.innerHTML = '<p class="text-gray-500 text-sm">Aucun rendez-vous trouvé.</p>';
-                    return;
-                }
-
-                rdvs.forEach(rdv => {
-                    const isTermine = rdv.statut === 'TERMINE';
-                    const badgeClass = isTermine ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800';
-                    
-                    const card = document.createElement('div');
-                    card.className = `p-4 border rounded-lg flex justify-between items-center ${isTermine ? 'bg-gray-50 opacity-75' : 'bg-white shadow-sm'}`;
-                    card.innerHTML = `
-                        <div>
-                            <h4 class="font-bold text-gray-800">${rdv.nom_patient} ${rdv.prenom_patient}</h4>
-                            <p class="text-sm text-gray-600">Motif : ${rdv.motif}</p>
-                            <span class="inline-block mt-1 px-2 py-1 text-xs font-semibold rounded ${badgeClass}">${rdv.statut}</span>
-                        </div>
-                        ${!isTermine ? `
-                            <button onclick="selectRdv(${rdv.id}, '${rdv.nom_patient} ${rdv.prenom_patient}')" 
-                                    class="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700">
-                                Consulter
-                            </button>
-                        ` : '<span class="text-xs text-green-600 font-semibold">Consulté</span>'}
-                    `;
-                    listContainer.appendChild(card);
-                });
-            } catch (err) {
-                console.error("Erreur chargement RDV:", err);
-            }
-        }
-
-        function selectRdv(id, patientName) {
-            document.getElementById('consult-rdv-id').value = id;
-            document.getElementById('consult-patient-name').value = patientName;
-            document.getElementById('btn-save-consult').disabled = false;
-        }
-
-        async function submitConsultation(e) {
-            e.preventDefault();
-            const rdv_id = parseInt(document.getElementById('consult-rdv-id').value);
-            const symptomes = document.getElementById('consult-symptomes').value;
-            const diagnostic = document.getElementById('consult-diagnostic').value;
-            const prescription = document.getElementById('consult-prescription').value;
-            const token = localStorage.getItem('token');
-
-            try {
-                const res = await fetch('/api/medecin/consultation', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ rdv_id, symptomes, diagnostic, prescription })
-                });
-
-                if (res.ok) {
-                    alert("Consultation enregistrée avec succès !");
-                    document.getElementById('consult-rdv-id').value = '';
-                    document.getElementById('consult-patient-name').value = '';
-                    document.getElementById('consult-symptomes').value = '';
-                    document.getElementById('consult-diagnostic').value = '';
-                    document.getElementById('consult-prescription').value = '';
-                    document.getElementById('btn-save-consult').disabled = true;
-                    loadMedecinData();
-                } else {
-                    const errData = await res.json();
-                    alert("Erreur API: " + JSON.stringify(errData.detail || errData));
-                }
-            } catch (err) {
-                alert("Erreur réseau: " + err.message);
-            }
-        }
-
+    function logout() {
+        localStorage.clear();
         checkAuth();
-    </script>
+    }
+
+    async function loadMedecinData() {
+        const token = localStorage.getItem('token');
+        try {
+            const res = await fetch('/api/medecin/rdv', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!res.ok) return;
+
+            const rdvs = await res.json();
+            const listContainer = document.getElementById('rdv-list');
+            listContainer.innerHTML = '';
+
+            if (rdvs.length === 0) {
+                listContainer.innerHTML = '<p class="text-gray-500 text-sm">Aucun rendez-vous disponible.</p>';
+                return;
+            }
+
+            rdvs.forEach(rdv => {
+                const isTermine = rdv.statut === 'TERMINE';
+                const badgeClass = isTermine ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800';
+                
+                const card = document.createElement('div');
+                card.className = `p-4 border rounded-lg flex justify-between items-center ${isTermine ? 'bg-gray-50 opacity-75' : 'bg-white shadow-sm'}`;
+                card.innerHTML = `
+                    <div>
+                        <h4 class="font-bold text-gray-800">${rdv.nom_patient} ${rdv.prenom_patient}</h4>
+                        <p class="text-sm text-gray-600">Motif : ${rdv.motif}</p>
+                        <span class="inline-block mt-1 px-2 py-1 text-xs font-semibold rounded ${badgeClass}">${rdv.statut}</span>
+                    </div>
+                    ${!isTermine ? `
+                        <button onclick="selectRdv(${rdv.id}, '${rdv.nom_patient} ${rdv.prenom_patient}')" 
+                                class="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700">
+                            Consulter
+                        </button>
+                    ` : '<span class="text-xs text-green-600 font-semibold">Consulté</span>'}
+                `;
+                listContainer.appendChild(card);
+            });
+        } catch (err) {
+            console.error("Erreur chargement RDV:", err);
+        }
+    }
+
+    function loadPatientData() {
+        // Préparation de la vue patient
+        const container = document.getElementById('patient-dashboard');
+        container.innerHTML = `
+            <h3 class="text-xl font-bold mb-4 text-gray-800">Espace Patient</h3>
+            <div class="p-4 bg-blue-50 border-l-4 border-blue-500 text-blue-700 rounded mb-4">
+                <p class="font-semibold">Bienvenue dans votre espace santé.</p>
+                <p class="text-sm">Vous pourrez bientôt prendre rendez-vous en ligne et consulter vos ordonnances ici.</p>
+            </div>
+        `;
+    }
+
+    function selectRdv(id, patientName) {
+        document.getElementById('consult-rdv-id').value = id;
+        document.getElementById('consult-patient-name').value = patientName;
+        document.getElementById('btn-save-consult').disabled = false;
+    }
+
+    async function submitConsultation(e) {
+        e.preventDefault();
+        const rdv_id = parseInt(document.getElementById('consult-rdv-id').value);
+        const symptomes = document.getElementById('consult-symptomes').value;
+        const diagnostic = document.getElementById('consult-diagnostic').value;
+        const prescription = document.getElementById('consult-prescription').value;
+        const token = localStorage.getItem('token');
+
+        try {
+            const res = await fetch('/api/medecin/consultation', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ rdv_id, symptomes, diagnostic, prescription })
+            });
+
+            if (res.ok) {
+                alert("Consultation enregistrée avec succès !");
+                document.getElementById('consult-rdv-id').value = '';
+                document.getElementById('consult-patient-name').value = '';
+                document.getElementById('consult-symptomes').value = '';
+                document.getElementById('consult-diagnostic').value = '';
+                document.getElementById('consult-prescription').value = '';
+                document.getElementById('btn-save-consult').disabled = true;
+                loadMedecinData();
+            } else {
+                const errData = await res.json();
+                alert("Erreur API: " + JSON.stringify(errData.detail || errData));
+            }
+        } catch (err) {
+            alert("Erreur réseau: " + err.message);
+        }
+    }
+
+    checkAuth();
+</script>
 </body>
 </html>
