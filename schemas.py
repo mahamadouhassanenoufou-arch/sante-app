@@ -1,35 +1,56 @@
-from typing import Optional, List
 from pydantic import BaseModel, EmailStr
+from typing import Optional, List
+from datetime import datetime
 
-class UserCreate(BaseModel):
+# --- UTILISATEUR / MEDECIN ---
+class UserBase(BaseModel):
     nom: str
     prenom: str
-    email: str
-    password: str
-    role: str = "PATIENT"
-    specialite: Optional[str] = None
-
-class UserLogin(BaseModel):
-    email: str
-    password: str
-
-class UserOut(BaseModel):
-    id: int
-    nom: str
-    prenom: str
-    email: str
+    email: EmailStr
     role: str
     specialite: Optional[str] = None
+    hopital: Optional[str] = None
 
+class UserCreate(UserBase):
+    password: str
+
+class UserResponse(UserBase):
+    id: int
     class Config:
         from_attributes = True
 
-class RdvCreate(BaseModel):
-    medecin_id: int
-    motif: str
+# --- DOSSIER MEDICAL DEFINITIF ---
+class DossierMedicalBase(BaseModel):
+    groupe_sanguin: Optional[str] = None
+    antecedents: Optional[str] = None
+    allergies: Optional[str] = None
+    notes_medecin: Optional[str] = None
 
-class ConsultationCreate(BaseModel):
-    rdv_id: int
-    symptomes: str
-    diagnostic: str
+class DossierMedicalCreate(DossierMedicalBase):
+    patient_id: int
+
+class DossierMedicalResponse(DossierMedicalBase):
+    id: int
+    patient_id: int
+    class Config:
+        from_attributes = True
+
+# --- RENDEZ-VOUS ---
+class RendezVousBase(BaseModel):
+    medecin_id: int
+    creneau_id: Optional[int] = None
+    hopital: Optional[str] = None
+    motif: str
+    symptomes: Optional[str] = None
+
+class RendezVousCreate(RendezVousBase):
+    pass
+
+class RendezVousResponse(RendezVousBase):
+    id: int
+    patient_id: int
+    statut: str
+    diagnostic: Optional[str] = None
     prescription: Optional[str] = None
+    class Config:
+        from_attributes = True

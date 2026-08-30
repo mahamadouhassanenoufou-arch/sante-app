@@ -1,19 +1,6 @@
-import enum
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, Enum, DateTime
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean, Text
 from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
 from database import Base
-
-class RoleEnum(str, enum.Enum):
-    PATIENT = "PATIENT"
-    MEDECIN = "MEDECIN"
-    ADMIN = "ADMIN"
-
-class StatutRDV(str, enum.Enum):
-    EN_ATTENTE = "EN_ATTENTE"
-    CONFIRME = "CONFIRME"
-    TERMINE = "TERMINE"
-    ANNULE = "ANNULE"
 
 class User(Base):
     __tablename__ = "users"
@@ -23,11 +10,23 @@ class User(Base):
     prenom = Column(String, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
-    role = Column(String, default="PATIENT")
-    specialite = Column(String, nullable=True)
+    role = Column(String, nullable=False)  # PATIENT ou MEDECIN
+    specialite = Column(String, nullable=True)  # Pour les médecins
+    hopital = Column(String, nullable=True)     # Hôpital/Établissement d'exercice du médecin
 
-    rdvs_patient = relationship("RendezVous", foreign_keys="RendezVous.patient_id", back_populates="patient")
-    rdvs_medecin = relationship("RendezVous", foreign_keys="RendezVous.medecin_id", back_populates="medecin")
+    creneaux = relationship("Creneau", back_populates="medecin", cascade="all, delete-orphan")
+    dossier_medical = relationship("DossierMedical", back_populates="patient", uselist=False)
+
+class Creneau(Base):
+    __tablename__ = "creneaux"
+
+    id = Column(Integer, primary_key=True, index=True)
+    medecin_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    date_heure_debut = Column(DateTime, nullable=False)
+    date_heure_fin = Column(DateTime, nullable=False)
+    est_disponible = Column(Boolean, default=True)
+
+    medecin = relationship("User", back_populates="creneaux")
 
 class RendezVous(Base):
     __tablename__ = "rendez_vous"
@@ -35,21 +34,25 @@ class RendezVous(Base):
     id = Column(Integer, primary_key=True, index=True)
     patient_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     medecin_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    creneau_id = Column(Integer, ForeignKey("creneaux.id"), nullable=True)
+    hopital = Column(String, nullable=True)  # Lieu exact de la consultation
     motif = Column(String, nullable=False)
-    statut = Column(Enum(StatutRDV), default=StatutRDV.EN_ATTENTE)
+    statut = Column(String, default="EN_ATTENTE")  # EN_ATTENTE, CONFIRME, TERMINE, ANNULE
+    symptomes = Column(String, nullable=True)
+    diagnostic = Column(String, nullable=True)
+    prescription = Column(String, nullable=True)
 
-    patient = relationship("User", foreign_keys=[patient_id], back_populates="rdvs_patient")
-    medecin = relationship("User", foreign_keys=[medecin_id], back_populates="rdvs_medecin")
-    consultation = relationship("Consultation", back_populates="rdv", uselist=False)
-
-class Consultation(Base):
-    __tablename__ = "consultations"
+class DossierMedical(Base):
+    """
+    Dossier médical définitif et permanent du patient.
+    """
+    __tablename__ = "dossiers_medicaux"
 
     id = Column(Integer, primary_key=True, index=True)
-    rdv_id = Column(Integer, ForeignKey("rendez_vous.id"), nullable=False)
-    symptomes = Column(Text, nullable=False)
-    diagnostic = Column(Text, nullable=False)
-    prescription = Column(Text, nullable=True)
-    date = Column(DateTime(timezone=True), server_default=func.now())
+    patient_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
+    groupe_sanguin = Column(String, nullable=True)
+    antecedents = Column(Text, nullable=True)      # Antécédents médicaux / chirurgicaux
+    allergies = Column(Text, nullable=True)        # Allergies connues
+    notes_medecin = Column(Text, nullable=True)    # Historique global des consultations
 
-    rdv = relationship("RendezVous", back_populates="consultation")
+    patient = relationship("User", back_populates="dossier_medical")

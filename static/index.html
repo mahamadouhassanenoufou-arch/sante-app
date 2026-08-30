@@ -3,526 +3,211 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SantéApp - Gestion Médicale</title>
-    
-    <!-- PWA Configuration -->
+    <title>SantéApp - Gestion de RDV Médicaux</title>
     <link rel="manifest" href="/static/manifest.json">
-    <meta name="theme-color" content="#4f46e5">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="SantéApp">
-    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2966/2966327.png">
-
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Style d'impression pour le PDF -->
+    <meta name="theme-color" content="#0284c7">
     <style>
-        @media print {
-            body * {
-                visibility: hidden;
-            }
-            #print-area, #print-area * {
-                visibility: visible;
-            }
-            #print-area {
-                position: absolute;
-                left: 0;
-                top: 0;
-                width: 100%;
-                padding: 20px;
-            }
+        :root {
+            --primary: #0284c7;
+            --primary-dark: #0369a1;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --danger: #ef4444;
+            --success: #22c55e;
         }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
+        body { background-color: var(--bg); color: var(--text); display: flex; flex-direction: column; min-height: 100vh; }
+
+        header {
+            background-color: var(--primary);
+            color: white;
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        header h1 { font-size: 1.4rem; }
+        .user-info { display: flex; align-items: center; gap: 1rem; }
+
+        button {
+            cursor: pointer;
+            padding: 0.6rem 1.2rem;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+
+        .btn-primary { background-color: var(--primary); color: white; }
+        .btn-primary:hover { background-color: var(--primary-dark); }
+        .btn-outline { background: transparent; border: 1px solid white; color: white; }
+
+        main { flex: 1; max-width: 800px; width: 100%; margin: 2rem auto; padding: 0 1rem; }
+        .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 1.5rem; }
+
+        .form-group { margin-bottom: 1rem; }
+        .form-group label { display: block; margin-bottom: 0.4rem; font-size: 0.9rem; color: var(--text-muted); }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 0.6rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem; }
+
+        .form-link { display: inline-block; margin-top: 0.8rem; color: var(--primary); text-decoration: none; font-size: 0.9rem; cursor: pointer; }
+        .alert { padding: 0.8rem 1rem; border-radius: 6px; margin-bottom: 1rem; font-size: 0.9rem; }
+        .alert-danger { background-color: #fef2f2; color: var(--danger); border: 1px solid #fecaca; }
+        .alert-success { background-color: #f0fdf4; color: var(--success); border: 1px solid #bbf7d0; }
+        .hidden { display: none !important; }
+
+        footer { text-align: center; padding: 1rem; color: var(--text-muted); font-size: 0.85rem; border-top: 1px solid var(--border); }
     </style>
 </head>
-<body class="bg-slate-100 min-h-screen text-slate-800 font-sans">
+<body>
 
-    <!-- Conteneur Toast Notifications -->
-    <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col space-y-3 pointer-events-none"></div>
-
-    <!-- Zone cachée dédiée à l'impression d'ordonnance PDF -->
-    <div id="print-area" class="hidden"></div>
-
-    <!-- Barre de Navigation -->
-    <nav class="bg-indigo-900 text-white px-6 py-4 flex justify-between items-center shadow-md">
-        <div class="flex items-center space-x-3">
-            <h1 class="text-2xl font-bold tracking-wide">SantéApp</h1>
-            <span class="bg-indigo-700 text-xs text-indigo-200 px-2.5 py-1 rounded-full font-medium">Espace Sécurisé</span>
+    <header>
+        <h1>🏥 SantéApp</h1>
+        <div id="user-nav" class="user-info hidden">
+            <span id="user-display-name"></span>
+            <button class="btn-outline" onclick="logout()">Déconnexion</button>
         </div>
-        <div class="flex items-center space-x-4">
-            <!-- Bouton d'installation PWA -->
-            <button id="pwa-install-btn" onclick="installPWA()" class="hidden bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold px-3 py-2 rounded-lg transition flex items-center space-x-2">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                </svg>
-                <span>Installer l'application</span>
-            </button>
+    </header>
 
-            <div id="user-info" class="hidden flex items-center space-x-4">
-                <div class="text-right">
-                    <span id="nav-user-name" class="block font-semibold text-sm"></span>
-                    <span id="nav-user-role" class="block text-xs text-indigo-200 capitalize"></span>
+    <main>
+        <div id="alert-box" class="alert hidden"></div>
+
+        <!-- SE CONNECTER -->
+        <div id="view-login" class="card">
+            <h2>Connexion</h2>
+            <form id="form-login" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label>Adresse E-mail</label>
+                    <input type="email" id="login-email" required>
                 </div>
-                <button onclick="logout()" class="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-2 rounded-lg transition font-medium">
-                    Déconnexion
-                </button>
-            </div>
-        </div>
-    </nav>
-
-    <div class="max-w-6xl mx-auto p-6">
-
-        <!-- SECTION AUTHENTIFICATION -->
-        <div id="auth-section" class="max-w-md mx-auto bg-white p-8 rounded-2xl shadow-xl mt-10">
-            <div class="flex justify-center space-x-4 mb-6 border-b pb-4">
-                <button id="tab-login" onclick="switchAuthTab('login')" class="text-indigo-600 font-bold border-b-2 border-indigo-600 pb-2 px-2">Connexion</button>
-                <button id="tab-register" onclick="switchAuthTab('register')" class="text-gray-500 font-bold border-b-2 border-transparent pb-2 px-2">Inscription</button>
-            </div>
-
-            <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Email</label>
-                    <input type="email" id="login-email" required class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+                <div class="form-group">
+                    <label>Mot de passe</label>
+                    <input type="password" id="login-password" required>
                 </div>
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Mot de passe</label>
-                    <input type="password" id="login-password" required class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
-                </div>
-                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-lg transition">Se connecter</button>
+                <button type="submit" class="btn-primary" style="width: 100%;">Se connecter</button>
             </form>
+            <div style="display: flex; justify-content: space-between; margin-top: 1rem;">
+                <a class="form-link" onclick="showView('register')">Créer un compte</a>
+                <a class="form-link" onclick="showView('forgot-password')">Mot de passe oublié ?</a>
+            </div>
+        </div>
 
-            <form id="register-form" onsubmit="handleRegister(event)" class="space-y-4 hidden">
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Nom</label>
-                    <input type="text" id="reg-nom" required class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+        <!-- INSCRIPTION -->
+        <div id="view-register" class="card hidden">
+            <h2>Inscription</h2>
+            <form id="form-register" onsubmit="handleRegister(event)">
+                <div class="form-group">
+                    <label>Nom</label>
+                    <input type="text" id="reg-nom" required>
                 </div>
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Prénom</label>
-                    <input type="text" id="reg-prenom" required class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+                <div class="form-group">
+                    <label>Prénom</label>
+                    <input type="text" id="reg-prenom" required>
                 </div>
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Email</label>
-                    <input type="email" id="reg-email" required class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+                <div class="form-group">
+                    <label>Adresse E-mail</label>
+                    <input type="email" id="reg-email" required>
                 </div>
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Mot de passe</label>
-                    <input type="password" id="reg-password" required class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+                <div class="form-group">
+                    <label>Mot de passe</label>
+                    <input type="password" id="reg-password" required>
                 </div>
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Rôle</label>
-                    <select id="reg-role" onchange="toggleSpecialite()" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+                <div class="form-group">
+                    <label>Rôle</label>
+                    <select id="reg-role" onchange="toggleSpecialiteField()">
                         <option value="PATIENT">Patient</option>
                         <option value="MEDECIN">Médecin</option>
                     </select>
                 </div>
-                <div id="specialite-container" class="hidden">
-                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Spécialité</label>
-                    <input type="text" id="reg-specialite" placeholder="Ex: Généraliste, Cardiologue" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+                <div class="form-group hidden" id="group-specialite">
+                    <label>Spécialité médicale</label>
+                    <input type="text" id="reg-specialite" placeholder="Ex: Cardiologue, Généraliste...">
                 </div>
-                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-lg transition">Créer un compte</button>
+                <button type="submit" class="btn-primary" style="width: 100%;">S'inscrire</button>
+            </form>
+            <a class="form-link" onclick="showView('login')">Déjà un compte ? Se connecter</a>
+        </div>
+
+        <!-- MOT DE PASSE OUBLIÉ -->
+        <div id="view-forgot-password" class="card hidden">
+            <h2>Réinitialisation du mot de passe</h2>
+            <form id="form-forgot-password" onsubmit="handleForgotPassword(event)">
+                <div class="form-group">
+                    <label>Adresse E-mail</label>
+                    <input type="email" id="forgot-email" required>
+                </div>
+                <button type="submit" class="btn-primary" style="width: 100%;">Envoyer le lien</button>
+            </form>
+            <a class="form-link" onclick="showView('login')">Retour</a>
+        </div>
+
+        <!-- RESET PASSWORD -->
+        <div id="view-reset-password" class="card hidden">
+            <h2>Nouveau mot de passe</h2>
+            <form id="form-reset-password" onsubmit="handleResetPassword(event)">
+                <input type="hidden" id="reset-token">
+                <div class="form-group">
+                    <label>Nouveau mot de passe</label>
+                    <input type="password" id="reset-new-password" required minlength="6">
+                </div>
+                <button type="submit" class="btn-primary" style="width: 100%;">Mettre à jour</button>
             </form>
         </div>
 
         <!-- DASHBOARD PATIENT -->
-        <div id="patient-dashboard" class="hidden space-y-6">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Prendre RDV -->
-                <div class="bg-white p-6 rounded-2xl shadow-md border border-slate-200">
-                    <h2 class="text-xl font-bold mb-4 text-indigo-900">Prendre RDV auprès d'un Spécialiste</h2>
-                    <form onsubmit="handleCreateRDV(event)" class="space-y-4">
-                        <div>
-                            <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Choisir un médecin</label>
-                            <select id="select-medecin" required class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white">
-                                <option value="">Chargement de la liste...</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Motif de consultation</label>
-                            <textarea id="rdv-motif" required rows="3" placeholder="Symptômes, motifs..." class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"></textarea>
-                        </div>
-                        <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-lg transition">
-                            Confirmer le Rendez-vous
-                        </button>
-                    </form>
-                </div>
-
-                <!-- Historique Médical Patient -->
-                <div class="bg-white p-6 rounded-2xl shadow-md border border-slate-200">
-                    <h2 class="text-xl font-bold mb-4 text-indigo-900">Mon Historique Médical</h2>
-                    <div id="patient-rdv-list" class="space-y-4 max-h-[500px] overflow-y-auto">
-                        <p class="text-gray-500 text-sm">Aucun rendez-vous dans votre dossier.</p>
+        <div id="view-patient-dashboard" class="hidden">
+            <div class="card">
+                <h3>Prendre un Rendez-vous</h3>
+                <form id="form-rdv" onsubmit="handleCreateRDV(event)">
+                    <div class="form-group">
+                        <label>Médecin</label>
+                        <select id="rdv-medecin-select" onchange="loadDoctorCreneaux(this.value)" required>
+                            <option value="">-- Sélectionnez un médecin --</option>
+                        </select>
                     </div>
-                </div>
+                    <div class="form-group">
+                        <label>Créneau disponible</label>
+                        <select id="rdv-creneau-select" required>
+                            <option value="">-- Sélectionnez d'abord un médecin --</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Motif</label>
+                        <textarea id="rdv-motif" rows="2" required placeholder="Motif de la consultation..."></textarea>
+                    </div>
+                    <button type="submit" class="btn-primary">Réserver le créneau</button>
+                </form>
             </div>
         </div>
 
-        <!-- DASHBOARD MEDECIN -->
-        <div id="medecin-dashboard" class="hidden space-y-6">
-            <div class="bg-white p-6 rounded-2xl shadow-md border border-slate-200">
-                <h2 class="text-xl font-bold mb-4 text-indigo-900">Rendez-vous et Consultations à Traiter</h2>
-                <div id="medecin-rdv-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <p class="text-gray-500 text-sm">Aucun rendez-vous en attente.</p>
-                </div>
+        <!-- DASHBOARD MÉDECIN -->
+        <div id="view-medecin-dashboard" class="hidden">
+            <div class="card">
+                <h3>Ajouter un Créneau de Disponibilité</h3>
+                <form id="form-creneau" onsubmit="handleCreateCreneau(event)">
+                    <div class="form-group">
+                        <label>Date & Heure de début</label>
+                        <input type="datetime-local" id="creneau-debut" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Date & Heure de fin</label>
+                        <input type="datetime-local" id="creneau-fin" required>
+                    </div>
+                    <button type="submit" class="btn-primary">Publier le créneau</button>
+                </form>
             </div>
         </div>
+    </main>
 
-    </div>
+    <footer>
+        <p>&copy; 2026 SantéApp — Système de Santé Connecté PWA</p>
+    </footer>
 
-    <!-- SCRIPT APPLICATION -->
-    <script>
-        const API_URL = "";
-        let patientRdvsData = [];
-
-        // Système de notification Toast
-        function showToast(message, type = 'success') {
-            const container = document.getElementById('toast-container');
-            const toast = document.createElement('div');
-            const bgColor = type === 'success' ? 'bg-emerald-600' : 'bg-red-600';
-            
-            toast.className = `${bgColor} text-white text-sm font-semibold px-4 py-3 rounded-xl shadow-lg transition-all duration-300 transform translate-x-full pointer-events-auto flex items-center justify-between space-x-3 min-w-[280px]`;
-            toast.innerHTML = `
-                <span>${message}</span>
-                <button onclick="this.parentElement.remove()" class="text-white hover:text-gray-200 font-bold ml-2">✕</button>
-            `;
-            
-            container.appendChild(toast);
-            setTimeout(() => toast.classList.remove('translate-x-full'), 10);
-            setTimeout(() => {
-                toast.classList.add('translate-x-full', 'opacity-0');
-                setTimeout(() => toast.remove(), 300);
-            }, 4000);
-        }
-
-        function getAuthHeader() {
-            const token = localStorage.getItem("token");
-            return token ? { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" } : { "Content-Type": "application/json" };
-        }
-
-        function checkAuth() {
-            const token = localStorage.getItem("token");
-            const role = localStorage.getItem("role");
-            const nom = localStorage.getItem("nom");
-            const prenom = localStorage.getItem("prenom");
-
-            if (token && role) {
-                document.getElementById("auth-section").classList.add("hidden");
-                document.getElementById("user-info").classList.remove("hidden");
-                document.getElementById("nav-user-name").innerText = `${prenom} ${nom}`;
-                document.getElementById("nav-user-role").innerText = role;
-
-                if (role.toUpperCase() === "PATIENT") {
-                    document.getElementById("patient-dashboard").classList.remove("hidden");
-                    document.getElementById("medecin-dashboard").classList.add("hidden");
-                    loadMedecins();
-                    loadPatientRDVs();
-                } else if (role.toUpperCase() === "MEDECIN") {
-                    document.getElementById("medecin-dashboard").classList.remove("hidden");
-                    document.getElementById("patient-dashboard").classList.add("hidden");
-                    loadMedecinRDVs();
-                }
-            } else {
-                document.getElementById("auth-section").classList.remove("hidden");
-                document.getElementById("user-info").classList.add("hidden");
-                document.getElementById("patient-dashboard").classList.add("hidden");
-                document.getElementById("medecin-dashboard").classList.add("hidden");
-            }
-        }
-
-        function switchAuthTab(tab) {
-            if (tab === 'login') {
-                document.getElementById("login-form").classList.remove("hidden");
-                document.getElementById("register-form").classList.add("hidden");
-                document.getElementById("tab-login").className = "text-indigo-600 font-bold border-b-2 border-indigo-600 pb-2 px-2";
-                document.getElementById("tab-register").className = "text-gray-500 font-bold border-b-2 border-transparent pb-2 px-2";
-            } else {
-                document.getElementById("login-form").classList.add("hidden");
-                document.getElementById("register-form").classList.remove("hidden");
-                document.getElementById("tab-register").className = "text-emerald-600 font-bold border-b-2 border-emerald-600 pb-2 px-2";
-                document.getElementById("tab-login").className = "text-gray-500 font-bold border-b-2 border-transparent pb-2 px-2";
-            }
-        }
-
-        function toggleSpecialite() {
-            const role = document.getElementById("reg-role").value;
-            const container = document.getElementById("specialite-container");
-            if (role === "MEDECIN") {
-                container.classList.remove("hidden");
-            } else {
-                container.classList.add("hidden");
-            }
-        }
-
-        async function handleLogin(e) {
-            e.preventDefault();
-            const email = document.getElementById("login-email").value;
-            const password = document.getElementById("login-password").value;
-
-            try {
-                const res = await fetch(`${API_URL}/api/auth/login`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ email, password })
-                });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.detail || "Échec de connexion");
-
-                localStorage.setItem("token", data.access_token);
-                localStorage.setItem("role", data.role);
-                localStorage.setItem("nom", data.nom);
-                localStorage.setItem("prenom", data.prenom);
-                showToast("Connexion réussie !");
-                checkAuth();
-            } catch (err) {
-                showToast(err.message, 'error');
-            }
-        }
-
-        async function handleRegister(e) {
-            e.preventDefault();
-            const nom = document.getElementById("reg-nom").value;
-            const prenom = document.getElementById("reg-prenom").value;
-            const email = document.getElementById("reg-email").value;
-            const password = document.getElementById("reg-password").value;
-            const role = document.getElementById("reg-role").value;
-            const specialite = document.getElementById("reg-specialite").value;
-
-            try {
-                const res = await fetch(`${API_URL}/api/auth/register`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ nom, prenom, email, password, role, specialite })
-                });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.detail || "Échec de l'inscription");
-
-                showToast("Compte créé avec succès ! Connectez-vous.");
-                switchAuthTab('login');
-            } catch (err) {
-                showToast(err.message, 'error');
-            }
-        }
-
-        function logout() {
-            localStorage.clear();
-            showToast("Déconnexion effectuée");
-            checkAuth();
-        }
-
-        async function loadMedecins() {
-            try {
-                const res = await fetch(`${API_URL}/api/patient/medecins`, { headers: getAuthHeader() });
-                const medecins = await res.json();
-                const select = document.getElementById("select-medecin");
-                select.innerHTML = medecins.map(m => `<option value="${m.id}">Dr. ${m.prenom} ${m.nom} (${m.specialite})</option>`).join('');
-            } catch (err) {
-                console.error("Erreur chargement médecins:", err);
-            }
-        }
-
-        async function handleCreateRDV(e) {
-            e.preventDefault();
-            const medecin_id = document.getElementById("select-medecin").value;
-            const motif = document.getElementById("rdv-motif").value;
-
-            try {
-                const res = await fetch(`${API_URL}/api/patient/rdv`, {
-                    method: "POST",
-                    headers: getAuthHeader(),
-                    body: JSON.stringify({ medecin_id, motif })
-                });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.detail || "Erreur réservation");
-
-                showToast("Rendez-vous réservé avec succès !");
-                document.getElementById("rdv-motif").value = "";
-                loadPatientRDVs();
-            } catch (err) {
-                showToast(err.message, 'error');
-            }
-        }
-
-        async function loadPatientRDVs() {
-            try {
-                const res = await fetch(`${API_URL}/api/patient/my-rdv`, { headers: getAuthHeader() });
-                const rdvs = await res.json();
-                patientRdvsData = rdvs;
-                const container = document.getElementById("patient-rdv-list");
-
-                if (!rdvs || rdvs.length === 0) {
-                    container.innerHTML = `<p class="text-gray-500 text-sm">Aucun rendez-vous dans votre dossier.</p>`;
-                    return;
-                }
-
-                container.innerHTML = rdvs.map(r => `
-                    <div class="p-4 border rounded-xl bg-slate-50 space-y-2">
-                        <div class="flex justify-between items-start">
-                            <div>
-                                <h4 class="font-bold text-slate-800">${r.medecin_nom}</h4>
-                                <span class="text-xs text-indigo-600 font-medium">${r.specialite}</span>
-                            </div>
-                            <span class="text-xs font-bold px-2 py-1 rounded ${r.statut === 'TERMINE' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">${r.statut}</span>
-                        </div>
-                        <p class="text-sm text-slate-600"><strong>Motif:</strong> ${r.motif}</p>
-                        ${r.diagnostic ? `
-                            <div class="pt-2 border-t text-xs space-y-1">
-                                <p><strong>Symptômes:</strong> ${r.symptomes || '-'}</p>
-                                <p><strong>Diagnostic:</strong> ${r.diagnostic}</p>
-                                <p><strong>Ordonnance:</strong> <span class="text-indigo-700 font-semibold">${r.prescription || '-'}</span></p>
-                                <button onclick="printOrdonnance(${r.id})" class="mt-2 w-full bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold py-1.5 rounded transition flex items-center justify-center space-x-1">
-                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
-                                    <span>Imprimer Ordonnance (PDF)</span>
-                                </button>
-                            </div>
-                        ` : ''}
-                    </div>
-                `).join('');
-            } catch (err) {
-                console.error("Erreur chargement RDV patient:", err);
-            }
-        }
-
-        function printOrdonnance(rdvId) {
-            const rdv = patientRdvsData.find(item => item.id === rdvId);
-            if (!rdv) return;
-
-            const printArea = document.getElementById('print-area');
-            const patientNom = localStorage.getItem("nom") || "";
-            const patientPrenom = localStorage.getItem("prenom") || "";
-            const dateStr = new Date().toLocaleDateString('fr-FR');
-
-            printArea.innerHTML = `
-                <div style="font-family: Arial, sans-serif; max-width: 650px; margin: 0 auto; border: 2px solid #4f46e5; padding: 30px; border-radius: 12px; background: #ffffff;">
-                    <div style="display: flex; justify-space-between; border-bottom: 2px solid #4f46e5; padding-bottom: 15px; margin-bottom: 20px;">
-                        <div>
-                            <h2 style="color: #4f46e5; margin: 0; font-size: 24px;">${rdv.medecin_nom}</h2>
-                            <p style="margin: 3px 0; color: #666; font-size: 14px;">Spécialité: ${rdv.specialite}</p>
-                            <p style="margin: 3px 0; color: #666; font-size: 14px;">SantéApp Clinic - Niamey, Niger</p>
-                        </div>
-                        <div style="text-align: right;">
-                            <p style="margin: 0; font-size: 14px; color: #333;"><strong>Date:</strong> ${dateStr}</p>
-                            <p style="margin: 5px 0 0 0; font-size: 14px; color: #333;"><strong>Patient:</strong> ${patientPrenom} ${patientNom}</p>
-                        </div>
-                    </div>
-
-                    <h1 style="text-align: center; text-transform: uppercase; letter-spacing: 2px; color: #1e1b4b; font-size: 20px; margin: 25px 0;">Ordonnance Médicale</h1>
-
-                    <div style="margin-bottom: 20px;">
-                        <p style="font-size: 14px; margin: 5px 0;"><strong>Motif / Symptômes :</strong> ${rdv.symptomes || rdv.motif}</p>
-                        <p style="font-size: 14px; margin: 5px 0;"><strong>Diagnostic :</strong> ${rdv.diagnostic}</p>
-                    </div>
-
-                    <div style="background-color: #f8fafc; border-left: 4px solid #4f46e5; padding: 15px; margin: 25px 0; min-height: 120px;">
-                        <h3 style="margin-top: 0; font-size: 16px; color: #1e1b4b;">Prescription :</h3>
-                        <p style="font-size: 15px; white-space: pre-line; color: #334155; font-weight: 500;">${rdv.prescription}</p>
-                    </div>
-
-                    <div style="margin-top: 60px; text-align: right; padding-right: 30px;">
-                        <p style="font-size: 14px; font-weight: bold; margin-bottom: 50px;">Signature et Cachet du Praticien</p>
-                        <p style="font-size: 12px; color: #94a3b8;">${rdv.medecin_nom}</p>
-                    </div>
-                </div>
-            `;
-
-            printArea.classList.remove('hidden');
-            window.print();
-            printArea.classList.add('hidden');
-        }
-
-        async function loadMedecinRDVs() {
-            try {
-                const res = await fetch(`${API_URL}/api/medecin/rdv`, { headers: getAuthHeader() });
-                const rdvs = await res.json();
-                const container = document.getElementById("medecin-rdv-list");
-
-                if (!rdvs || rdvs.length === 0) {
-                    container.innerHTML = `<p class="text-gray-500 text-sm">Aucun rendez-vous en attente.</p>`;
-                    return;
-                }
-
-                container.innerHTML = rdvs.map(r => `
-                    <div class="p-4 border rounded-xl bg-slate-50 space-y-3">
-                        <div class="flex justify-between items-center">
-                            <h4 class="font-bold text-slate-800">${r.prenom_patient} ${r.nom_patient}</h4>
-                            <span class="text-xs font-bold px-2 py-1 rounded ${r.statut === 'TERMINE' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">${r.statut}</span>
-                        </div>
-                        <p class="text-sm text-slate-600"><strong>Motif:</strong> ${r.motif}</p>
-                        ${r.statut !== 'TERMINE' ? `
-                            <form onsubmit="handleConsultation(event, ${r.id})" class="space-y-2 pt-2 border-t">
-                                <input type="text" id="symp-${r.id}" placeholder="Symptômes constatés" required class="w-full text-xs p-2 border rounded">
-                                <input type="text" id="diag-${r.id}" placeholder="Diagnostic" required class="w-full text-xs p-2 border rounded">
-                                <textarea id="presc-${r.id}" placeholder="Prescription / Ordonnance" rows="2" class="w-full text-xs p-2 border rounded"></textarea>
-                                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2 rounded transition">
-                                    Valider la Consultation
-                                </button>
-                            </form>
-                        ` : '<p class="text-xs text-green-600 font-semibold pt-2 border-t">Consultation terminée</p>'}
-                    </div>
-                `).join('');
-            } catch (err) {
-                console.error("Erreur chargement RDV médecin:", err);
-            }
-        }
-
-        async function handleConsultation(e, rdvId) {
-            e.preventDefault();
-            const symptomes = document.getElementById(`symp-${rdvId}`).value;
-            const diagnostic = document.getElementById(`diag-${rdvId}`).value;
-            const prescription = document.getElementById(`presc-${rdvId}`).value;
-
-            try {
-                const res = await fetch(`${API_URL}/api/medecin/consultation`, {
-                    method: "POST",
-                    headers: getAuthHeader(),
-                    body: JSON.stringify({ rdv_id: rdvId, symptomes, diagnostic, prescription })
-                });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.detail || "Erreur enregistrement consultation");
-
-                showToast("Consultation enregistrée avec succès !");
-                loadMedecinRDVs();
-            } catch (err) {
-                showToast(err.message, 'error');
-            }
-        }
-
-        window.onload = checkAuth;
-    </script>
-
-    <!-- Script Installation PWA -->
-    <script>
-        let deferredPrompt;
-        const installBtn = document.getElementById('pwa-install-btn');
-
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            if (installBtn) installBtn.classList.remove('hidden');
-        });
-
-        async function installPWA() {
-            if (!deferredPrompt) return;
-            deferredPrompt.prompt();
-            const { outcome } = await deferredPrompt.userChoice;
-            if (outcome === 'accepted') showToast('Installation PWA acceptée !');
-            deferredPrompt = null;
-            if (installBtn) installBtn.classList.add('hidden');
-        }
-
-        window.addEventListener('appinstalled', () => {
-            if (installBtn) installBtn.classList.add('hidden');
-        });
-    </script>
-
-    <!-- Enregistrement Service Worker -->
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/static/sw.js')
-                    .then(reg => console.log('Service Worker PWA actif:', reg.scope))
-                    .catch(err => console.error('Erreur Service Worker:', err));
-            });
-        }
-    </script>
-
+    <script src="/static/app.js"></script>
 </body>
 </html>

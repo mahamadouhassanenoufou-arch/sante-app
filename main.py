@@ -1,231 +1,135 @@
-from datetime import datetime
-from typing import List, Optional
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import text
+from typing import List
+from database import engine, get_db, Base
+import models
+import schemas
+import security
 
-import models, schemas, security
-from database import engine, get_db
+Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Santé App")
+app = FastAPI(title="SantéApp Backend API", version="1.0.0")
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# Correction et alignement brut de la structure PostgreSQL
-@app.on_event("startup")
-def startup_db_check():
-    try:
-        models.Base.metadata.create_all(bind=engine)
-        with engine.connect() as conn:
-            # 1. Mise à jour de la table users
-            conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS specialite VARCHAR;"))
-            
-            # 2. Reconstitution / Alignement strict de la table rendez_vous
-            conn.execute(text("ALTER TABLE rendez_vous ADD COLUMN IF NOT EXISTS date_heure TIMESTAMP DEFAULT CURRENT_TIMESTAMP;"))
-            conn.execute(text("ALTER TABLE rendez_vous ALTER COLUMN date_heure DROP NOT NULL;"))
-            
-            # 3. Alignement consultations
-            conn.execute(text("ALTER TABLE consultations ADD COLUMN IF NOT EXISTS rdv_id INTEGER REFERENCES rendez_vous(id);"))
-            conn.execute(text("ALTER TABLE consultations ADD COLUMN IF NOT EXISTS prescription TEXT;"))
-            conn.execute(text("ALTER TABLE consultations ADD COLUMN IF NOT EXISTS date TIMESTAMP DEFAULT CURRENT_TIMESTAMP;"))
-            
-            conn.commit()
-            print("DB Migration et alignement réussis !")
-    except Exception as e:
-        print(f"Erreur lors de la migration DB : {e}")
-
 @app.get("/")
-def read_index():
+def read_root():
     return FileResponse("static/index.html")
 
-# ----------------- AUTHENTIFICATION -----------------
+# --- AUTHENTIFICATION ---
 
-@app.post("/api/auth/register", response_model=schemas.UserOut)
-def register_user(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
-    db_user = db.query(models.User).filter(models.User.email == user_in.email).first()
+@app.post("/api/auth/register", response_model=schemas.UserResponse, status_code=status.HTTP_201_CREATED)
+def register(user_data: schemas.UserCreate, db: Session = Depends(get_db)):
+    db_user = db.query(models.User).filter(models.User.email == user_data.email).first()
     if db_user:
-        raise HTTPException(status_code=400, detail="Cet email est déjà enregistré.")
-    
-    hashed_pwd = security.get_password_hash(user_in.password)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Un compte existe déjà avec cette adresse email."
+        )
+
+    hashed_pwd = security.get_password_hash(user_data.password)
     new_user = models.User(
-        nom=user_in.nom,
-        prenom=user_in.prenom,
-        email=user_in.email,
+        nom=user_data.nom,
+        prenom=user_data.prenom,
+        email=user_data.email,
         hashed_password=hashed_pwd,
-        role=user_in.role.upper(),
-        specialite=user_in.specialite if user_in.role.upper() == "MEDECIN" else None
+        role=user_data.role.upper(),
+        specialite=user_data.specialite if user_data.role.upper() == "MEDECIN" else None
     )
+
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
     return new_user
 
-@app.post("/api/auth/login")
-def login(login_data: schemas.UserLogin, db: Session = Depends(get_db)):
-    user = db.query(models.User).filter(models.User.email == login_data.email).first()
-    if not user or not security.verify_password(login_data.password, user.hashed_password):
-        raise HTTPException(status_code=400, detail="Email ou mot de passe incorrect.")
-    
-    access_token = security.create_access_token(data={"sub": str(user.id), "role": user.role})
+
+@app.post("/api/auth/login", response_model=schemas.Token)
+def login(credentials: schemas.UserLogin, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.email == credentials.email).first()
+    if not user or not security.verify_password(credentials.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Email ou mot de passe incorrect."
+        )
+
+    access_token = security.create_access_token(data={"sub": user.email})
     return {
         "access_token": access_token,
         "token_type": "bearer",
-        "user_id": user.id,
         "role": user.role,
         "nom": user.nom,
         "prenom": user.prenom
     }
 
-# ----------------- PATIENT -----------------
 
-@app.get("/api/patient/medecins")
-def get_list_medecins(db: Session = Depends(get_db)):
-    medecins = db.query(models.User).filter(models.User.role == "MEDECIN").all()
-    return [
-        {
-            "id": m.id, 
-            "nom": m.nom, 
-            "prenom": m.prenom,
-            "specialite": m.specialite or "Généraliste"
-        } 
-        for m in medecins
-    ]
-
-@app.post("/api/patient/rdv")
-def create_rdv(
-    data: schemas.RdvCreate, 
-    current_user: models.User = Depends(security.get_current_user), 
-    db: Session = Depends(get_db)
-):
-    if current_user.role != "PATIENT":
-        raise HTTPException(status_code=403, detail="Accès réservé aux patients.")
+@app.post("/api/auth/forgot-password")
+def forgot_password(payload: schemas.ForgotPasswordRequest, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.email == payload.email).first()
+    if not user:
+        return {"message": "Si l'adresse email existe, un lien de réinitialisation a été généré."}
     
-    medecin = db.query(models.User).filter(
-        models.User.id == int(data.medecin_id), 
-        models.User.role == "MEDECIN"
-    ).first()
-    
-    if not medecin:
-        raise HTTPException(status_code=404, detail="Le médecin sélectionné n'existe pas.")
+    reset_token = security.create_reset_password_token(user.email)
+    print(f"\n[RESET PASSWORD KEY] Token généré pour {user.email} : {reset_token}\n")
+    return {"message": "Si l'adresse email existe, un lien de réinitialisation a été généré."}
 
-    # Création ultra-sécurisée du RDV
-    try:
-        new_rdv = models.RendezVous(
-            patient_id=int(current_user.id),
-            medecin_id=int(data.medecin_id),
-            motif=data.motif,
-            statut="EN_ATTENTE",
-            date_heure=datetime.utcnow()
+
+@app.post("/api/auth/reset-password")
+def reset_password(payload: schemas.ResetPasswordConfirm, db: Session = Depends(get_db)):
+    email = security.verify_reset_password_token(payload.token)
+    if not email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Le jeton de réinitialisation est invalide ou a expiré."
         )
-        db.add(new_rdv)
-        db.commit()
-        db.refresh(new_rdv)
-    except Exception as e:
-        db.rollback()
-        # Fallback de secours par SQL direct si le modèle ORM coince sur des colonnes Enum/NULL
-        try:
-            sql = text("""
-                INSERT INTO rendez_vous (patient_id, medecin_id, motif, statut, date_heure) 
-                VALUES (:p_id, :m_id, :motif, 'EN_ATTENTE', NOW())
-            """)
-            db.execute(sql, {
-                "p_id": int(current_user.id),
-                "m_id": int(data.medecin_id),
-                "motif": data.motif
-            })
-            db.commit()
-        except Exception as err_fallback:
-            db.rollback()
-            raise HTTPException(status_code=500, detail=f"Erreur insertion RDV : {str(err_fallback)}")
-
-    return {"message": "Rendez-vous enregistré avec succès"}
-
-@app.get("/api/patient/my-rdv")
-def get_patient_rdvs(
-    current_user: models.User = Depends(security.get_current_user), 
-    db: Session = Depends(get_db)
-):
-    if current_user.role != "PATIENT":
-        raise HTTPException(status_code=403, detail="Accès réservé aux patients.")
     
-    rdvs = db.query(models.RendezVous).filter(models.RendezVous.patient_id == current_user.id).all()
-    res = []
-    for r in rdvs:
-        c = db.query(models.Consultation).filter(models.Consultation.rdv_id == r.id).first()
-        medecin = db.query(models.User).filter(models.User.id == r.medecin_id).first()
-        
-        statut_str = r.statut.value if hasattr(r.statut, 'value') else str(r.statut)
-        
-        res.append({
-            "id": r.id,
-            "medecin_nom": f"Dr. {medecin.prenom} {medecin.nom}" if medecin else "Praticien",
-            "specialite": medecin.specialite if medecin and medecin.specialite else "Généraliste",
-            "motif": r.motif,
-            "statut": statut_str,
-            "symptomes": c.symptomes if c else None,
-            "diagnostic": c.diagnostic if c else None,
-            "prescription": c.prescription if c else None
-        })
-    return res
+    user = db.query(models.User).filter(models.User.email == email).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Utilisateur non trouvé."
+        )
+    
+    user.hashed_password = security.get_password_hash(payload.new_password)
+    db.commit()
+    return {"message": "Le mot de passe a été réinitialisé avec succès."}
 
-# ----------------- MEDECIN -----------------
 
-@app.get("/api/medecin/rdv")
-def get_medecin_rdvs(
-    current_user: models.User = Depends(security.get_current_user), 
-    db: Session = Depends(get_db)
+# --- GESTION DES CRÉNEAUX HORAIRES ---
+
+@app.post("/api/creneaux", response_model=schemas.CreneauResponse, status_code=status.HTTP_201_CREATED)
+def create_creneau(
+    creneau_data: schemas.CreneauCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(security.get_current_user)
 ):
     if current_user.role != "MEDECIN":
-        raise HTTPException(status_code=403, detail="Accès réservé aux médecins.")
+        raise HTTPException(status_code=403, detail="Seuls les médecins peuvent ajouter des créneaux.")
     
-    rdvs = db.query(models.RendezVous).filter(models.RendezVous.medecin_id == current_user.id).all()
-    res = []
-    for r in rdvs:
-        patient = db.query(models.User).filter(models.User.id == r.patient_id).first()
-        statut_str = r.statut.value if hasattr(r.statut, 'value') else str(r.statut)
-        res.append({
-            "id": r.id,
-            "patient_id": r.patient_id,
-            "nom_patient": patient.nom if patient else "Inconnu",
-            "prenom_patient": patient.prenom if patient else "",
-            "motif": r.motif,
-            "statut": statut_str
-        })
-    return res
+    if creneau_data.date_heure_fin <= creneau_data.date_heure_debut:
+        raise HTTPException(status_code=400, detail="La date de fin doit être supérieure à la date de début.")
 
-@app.post("/api/medecin/consultation")
-def create_consultation(
-    data: schemas.ConsultationCreate, 
-    current_user: models.User = Depends(security.get_current_user), 
-    db: Session = Depends(get_db)
-):
-    if current_user.role != "MEDECIN":
-        raise HTTPException(status_code=403, detail="Accès réservé aux médecins.")
-    
-    rdv = db.query(models.RendezVous).filter(
-        models.RendezVous.id == int(data.rdv_id), 
-        models.RendezVous.medecin_id == current_user.id
-    ).first()
-    
-    if not rdv:
-        raise HTTPException(status_code=404, detail="Rendez-vous introuvable.")
-    
-    consult = models.Consultation(
-        rdv_id=rdv.id,
-        symptomes=data.symptomes,
-        diagnostic=data.diagnostic,
-        prescription=data.prescription
+    new_creneau = models.Creneau(
+        medecin_id=current_user.id,
+        date_heure_debut=creneau_data.date_heure_debut,
+        date_heure_fin=creneau_data.date_heure_fin,
+        est_disponible=True
     )
-    
-    rdv.statut = "TERMINE"
-    
-    try:
-        db.add(consult)
-        db.commit()
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Erreur enregistrement consultation : {str(e)}")
+    db.add(new_creneau)
+    db.commit()
+    db.refresh(new_creneau)
+    return new_creneau
 
-    return {"message": "Consultation enregistrée avec succès."}
+
+@app.get("/api/medecins/{medecin_id}/creneaux", response_model=List[schemas.CreneauResponse])
+def get_medecin_creneaux(medecin_id: int, db: Session = Depends(get_db)):
+    return db.query(models.Creneau).filter(
+        models.Creneau.medecin_id == medecin_id,
+        models.Creneau.est_disponible == True
+    ).all()
+
+
+@app.get("/api/medecins", response_model=List[schemas.UserResponse])
+def get_medecins(db: Session = Depends(get_db)):
+    return db.query(models.User).filter(models.User.role == "MEDECIN").all()
