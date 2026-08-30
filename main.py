@@ -103,21 +103,28 @@ def create_rdv(
     if hasattr(models, "StatutRDV") and hasattr(models.StatutRDV, "EN_ATTENTE"):
         statut_val = models.StatutRDV.EN_ATTENTE.value if hasattr(models.StatutRDV.EN_ATTENTE, 'value') else "EN_ATTENTE"
 
+    now = datetime.utcnow()
     new_rdv = models.RendezVous(
         patient_id=int(current_user.id),
         medecin_id=int(data.medecin_id),
         motif=data.motif,
         statut=statut_val,
-        date_heure=datetime.utcnow()  # Inscription explicite pour respecter la contrainte DB
+        date_heure=now
     )
     
+    # Sécurité pour remplir d'autres champs temporels optionnels s'ils existent dans le modèle
+    if hasattr(new_rdv, 'date') and getattr(new_rdv, 'date') is None:
+        setattr(new_rdv, 'date', now)
+    if hasattr(new_rdv, 'created_at') and getattr(new_rdv, 'created_at') is None:
+        setattr(new_rdv, 'created_at', now)
+
     try:
         db.add(new_rdv)
         db.commit()
         db.refresh(new_rdv)
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Erreur lors de la réservation : {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erreur DB SQL: {str(e)}")
 
     return {"message": "Rendez-vous enregistré avec succès"}
 
