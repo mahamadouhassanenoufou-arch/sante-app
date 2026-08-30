@@ -6,6 +6,8 @@ from typing import List, Optional
 
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 import models, schemas, utils
@@ -25,7 +27,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- HELPER SMTP (AVEC ERREUR CAPTURÉE) ---
+# Service des fichiers statiques (Frontend HTML/CSS/JS)
+# Assurez-vous que vos fichiers HTML (index.html, etc.) sont bien dans le dossier 'static'
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+
+# --- HELPER SMTP SÉCURISÉ ---
 def send_email_safe(to_email: str, subject: str, content: str):
     mail_server = os.getenv("MAIL_SERVER", "smtp.gmail.com")
     mail_port = int(os.getenv("MAIL_PORT", 587))
@@ -49,7 +56,14 @@ def send_email_safe(to_email: str, subject: str, content: str):
             server.send_message(msg)
         print(f" [SMTP OK] Mail envoyé à {to_email}")
     except Exception as e:
-        print(f" [SMTP ERROR] Échec de l'envoi du mail à {to_email} : {e}")
+        print(f" [SMTP ERROR] Échec d'envoi du mail : {e}")
+
+
+# --- ROUTE RACINE (SERVEUR PWA FRONTEND) ---
+
+@app.get("/")
+def read_root():
+    return FileResponse("static/index.html")
 
 
 # --- ROUTES AUTHENTIFICATION ---
@@ -74,7 +88,7 @@ def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
 
-    # Tentative d'envoi d'e-mail de bienvenue sans bloquer la réponse en cas d'erreur
+    # Envoi du mail de bienvenue sans bloquer l'inscription si SMTP échoue
     send_email_safe(
         to_email=new_user.email,
         subject="Bienvenue sur SantéApp",
@@ -98,12 +112,10 @@ def login(user_credentials: schemas.UserLogin, db: Session = Depends(get_db)):
 def forgot_password(payload: schemas.ForgotPasswordRequest, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.email == payload.email).first()
     if not user:
-        # Réponse générique pour des raisons de sécurité
         return {"message": "Si l'adresse existe, un e-mail de réinitialisation a été envoyé."}
     
     reset_token = utils.create_access_token(data={"sub": user.email}, expires_delta=timedelta(minutes=15))
     
-    # Envoi sécurisé du lien par mail
     send_email_safe(
         to_email=user.email,
         subject="Réinitialisation de votre mot de passe",
@@ -129,7 +141,7 @@ def reset_password(payload: schemas.ResetPasswordConfirm, db: Session = Depends(
     return {"message": "Mot de passe réinitialisé avec succès."}
 
 
-# --- ROUTES CRENEAUX ---
+# --- ROUTES CRÉNEAUX ---
 
 @app.post("/api/creneaux", response_model=schemas.CreneauResponse, status_code=status.HTTP_201_CREATED)
 def create_creneau(creneau: schemas.CreneauCreate, db: Session = Depends(get_db)):
@@ -149,10 +161,3 @@ def create_rendez_vous(rdv: schemas.RendezVousCreate, db: Session = Depends(get_
     db.commit()
     db.refresh(new_rdv)
     return new_rdv
-
-
-# --- ROUTE SANTÉ SYSTEME ---
-
-@app.get("/")
-def read_root():
-    return {"status": "ok", "app": "SantéApp API"}
