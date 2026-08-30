@@ -1,8 +1,7 @@
 const CACHE_NAME = "santeapp-v1";
 const ASSETS_TO_CACHE = [
   "/",
-  "/static/index.html",
-  "https://cdn.tailwindcss.com"
+  "/static/index.html"
 ];
 
 // Installation du Service Worker
@@ -32,6 +31,9 @@ self.addEventListener("activate", (event) => {
 // Stratégie Network-First avec Fallback Cache
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
+
+  // Ignorer la mise en cache pour les domaines externes comme CDN
+  if (!event.request.url.startsWith(self.location.origin)) return;
 
   event.respondWith(
     fetch(event.request)
