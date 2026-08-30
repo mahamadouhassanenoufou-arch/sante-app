@@ -61,3 +61,11 @@ class RendezVousResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+    class Token(BaseModel):
+    access_token: str
+    token_type: str
+    user_id: int
+    nom: str
+    prenom: str
+    role: str

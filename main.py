@@ -109,14 +109,20 @@ def login(user_credentials: schemas.UserLogin, db: Session = Depends(get_db)):
             raise HTTPException(status_code=401, detail="Identifiants incorrects.")
 
         access_token = utils.create_access_token(data={"sub": user.email, "role": user.role})
-        return {"access_token": access_token, "token_type": "bearer"}
+        
+        return {
+            "access_token": access_token,
+            "token_type": "bearer",
+            "user_id": user.id,
+            "nom": user.nom,
+            "prenom": user.prenom,
+            "role": user.role
+        }
     except HTTPException:
         raise
     except Exception as e:
         print("CRASH LOGIN:", traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"Erreur de connexion: {str(e)}")
-
-
 @app.post("/api/forgot-password")
 def forgot_password(payload: schemas.ForgotPasswordRequest, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.email == payload.email).first()
