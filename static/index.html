@@ -3,152 +3,199 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Santé App</title>
+    <title>Santé App - Portail Médical</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100 min-h-screen">
-    <!-- Barre de Navigation -->
-    <nav class="bg-white shadow px-6 py-4 flex justify-between items-center">
-        <h1 class="text-2xl font-bold text-gray-800">Santé App</h1>
-        
-        <div id="nav-actions" class="flex items-center gap-4">
-            <!-- Bouton pour basculer en mode Médecin / Admin -->
-            <button id="btn-pro-login" onclick="showProLogin()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium text-sm">
-                Accès Médecin / Admin
-            </button>
+<body class="bg-slate-100 min-h-screen flex flex-col font-sans">
 
-            <!-- Info Utilisateur Connecté (Médecin / Admin) -->
-            <div id="user-info" class="hidden flex items-center gap-4">
-                <span id="user-display" class="font-semibold text-gray-700"></span>
-                <button onclick="logout()" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm">Déconnexion</button>
+    <!-- En-tête Principal -->
+    <header class="bg-indigo-900 text-white shadow-md">
+        <div class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <span class="text-2xl font-black tracking-wider text-indigo-400">SantéApp</span>
+                <span class="text-xs bg-indigo-800 text-indigo-200 px-2 py-1 rounded">Espace Sécurisé</span>
+            </div>
+
+            <div id="user-session" class="hidden flex items-center gap-4">
+                <div class="text-right">
+                    <p id="user-display-name" class="font-bold text-sm text-white"></p>
+                    <p id="user-display-role" class="text-xs text-indigo-300"></p>
+                </div>
+                <button onclick="logout()" class="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-sm rounded-md transition font-medium">
+                    Déconnexion
+                </button>
             </div>
         </div>
-    </nav>
+    </header>
 
-    <div class="container mx-auto mt-8 p-4">
+    <main class="container mx-auto mt-8 px-4 flex-grow">
 
-        <!-- Formulaire de Connexion SÉCURISÉ (Médecins & Admin uniquement) -->
-        <div id="auth-container" class="hidden max-w-md mx-auto bg-white p-6 rounded-lg shadow-md mb-8">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-bold text-gray-800">Connexion Pro (Médecin / Admin)</h2>
-                <button onclick="cancelProLogin()" class="text-gray-500 hover:text-gray-700 font-bold">✕</button>
+        <!-- 1. PORTAIL AUTHENTIFICATION (Page d'accueil si non connecté) -->
+        <div id="auth-portal" class="max-w-md mx-auto bg-white p-8 rounded-xl shadow-lg border border-slate-200">
+            <div class="text-center mb-6">
+                <h2 id="auth-title" class="text-2xl font-bold text-slate-800">Connexion au Portail</h2>
+                <p class="text-sm text-slate-500 mt-1">Veuillez vous identifier pour accéder à votre espace</p>
             </div>
-            
-            <!-- Note explicative pour éviter que le navigateur propose la saisie auto Windows -->
-            <p class="text-xs text-gray-500 mb-4">Réservé aux praticiens et administrateurs autorisés.</p>
 
-            <form onsubmit="handleAuth(event)" class="space-y-4" autocomplete="off">
-                <div>
-                    <label class="block text-sm font-medium">Email professionnel</label>
-                    <input type="email" id="email" required autocomplete="username" class="w-full border p-2 rounded focus:ring-2 focus:ring-indigo-500">
+            <form onsubmit="handleAuth(event)" class="space-y-4">
+                <div id="register-fields" class="hidden space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">Nom</label>
+                        <input type="text" id="nom" class="w-full border p-2.5 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">Prénom</label>
+                        <input type="text" id="prenom" class="w-full border p-2.5 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">Rôle</label>
+                        <select id="role" onchange="toggleSpecialite()" class="w-full border p-2.5 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+                            <option value="PATIENT">Patient</option>
+                            <option value="MEDECIN">Médecin / Praticien</option>
+                        </select>
+                    </div>
+                    <div id="specialite-container" class="hidden">
+                        <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">Spécialité Médicale</label>
+                        <select id="specialite" class="w-full border p-2.5 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+                            <option value="Généraliste">Généraliste</option>
+                            <option value="Cardiologue">Cardiologue</option>
+                            <option value="Anesthésiste">Anesthésiste</option>
+                            <option value="Pédiatre">Pédiatre</option>
+                            <option value="Dermatologue">Dermatologue</option>
+                            <option value="Gyneco-Obstétricien">Gyneco-Obstétricien</option>
+                        </select>
+                    </div>
                 </div>
+
                 <div>
-                    <label class="block text-sm font-medium">Mot de passe</label>
-                    <input type="password" id="password" required autocomplete="current-password" class="w-full border p-2 rounded focus:ring-2 focus:ring-indigo-500">
+                    <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">Adresse Email</label>
+                    <input type="email" id="email" required class="w-full border p-2.5 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
                 </div>
-                <button type="submit" class="w-full bg-indigo-600 text-white p-2 rounded font-bold hover:bg-indigo-700">Se connecter</button>
+
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">Mot de passe</label>
+                    <input type="password" id="password" required class="w-full border p-2.5 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+
+                <button type="submit" id="auth-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold p-3 rounded-lg transition shadow-md">
+                    Se Connecter
+                </button>
             </form>
+
+            <div class="text-center mt-6 pt-4 border-t border-slate-100">
+                <a href="#" id="toggle-auth" onclick="toggleAuthMode()" class="text-sm font-semibold text-indigo-600 hover:underline">
+                    Créer un compte
+                </a>
+            </div>
         </div>
 
-        <!-- Dashboard Médecin / Admin (Masqué par défaut) -->
-        <div id="medecin-dashboard" class="hidden grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div class="bg-white p-6 rounded-lg shadow-md">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-lg font-bold text-gray-800">Rendez-vous à honorer</h3>
-                    <button onclick="loadMedecinData()" class="px-3 py-1 text-sm bg-gray-200 rounded hover:bg-gray-300">↻ Actualiser</button>
+        <!-- 2. ESPACE MÉDECIN (Visible uniquement si Médecin connecté) -->
+        <div id="medecin-dashboard" class="hidden grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div class="bg-white p-6 rounded-xl shadow-md border border-slate-200">
+                <div class="flex justify-between items-center mb-6 border-b pb-3">
+                    <h3 class="text-lg font-bold text-slate-800">Mes Rendez-vous attribués</h3>
+                    <button onclick="loadMedecinData()" class="px-3 py-1 bg-slate-100 text-slate-700 text-sm rounded hover:bg-slate-200 transition">↻ Actualiser</button>
                 </div>
-                <div id="rdv-list" class="space-y-3"></div>
+                <div id="rdv-list" class="space-y-4"></div>
             </div>
 
-            <div class="bg-white p-6 rounded-lg shadow-md">
-                <h3 class="text-lg font-bold text-gray-800 mb-4">Nouvelle Consultation</h3>
+            <div class="bg-white p-6 rounded-xl shadow-md border border-slate-200">
+                <h3 class="text-lg font-bold text-slate-800 mb-6 border-b pb-3">Dossier de Consultation</h3>
                 <form onsubmit="submitConsultation(event)" class="space-y-4">
                     <input type="hidden" id="consult-rdv-id">
                     <div>
-                        <label class="block text-sm font-medium">Patient</label>
-                        <input type="text" id="consult-patient-name" disabled class="w-full border p-2 rounded bg-gray-100">
+                        <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">Patient</label>
+                        <input type="text" id="consult-patient-name" disabled class="w-full border p-2.5 rounded-lg bg-slate-100 font-semibold text-slate-700">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium">Symptômes</label>
-                        <textarea id="consult-symptomes" required class="w-full border p-2 rounded h-20"></textarea>
+                        <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">Symptômes constatés</label>
+                        <textarea id="consult-symptomes" required class="w-full border p-2.5 rounded-lg h-20 focus:ring-2 focus:ring-indigo-500 outline-none"></textarea>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium">Diagnostic</label>
-                        <textarea id="consult-diagnostic" required class="w-full border p-2 rounded h-20"></textarea>
+                        <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">Diagnostic Médical</label>
+                        <textarea id="consult-diagnostic" required class="w-full border p-2.5 rounded-lg h-20 focus:ring-2 focus:ring-indigo-500 outline-none"></textarea>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium">Prescription / Ordonnance</label>
-                        <textarea id="consult-prescription" class="w-full border p-2 rounded h-20"></textarea>
+                        <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">Prescription / Ordonnance</label>
+                        <textarea id="consult-prescription" class="w-full border p-2.5 rounded-lg h-20 focus:ring-2 focus:ring-indigo-500 outline-none"></textarea>
                     </div>
-                    <button type="submit" id="btn-save-consult" disabled class="w-full bg-green-700 text-white p-2 rounded hover:bg-green-800 disabled:opacity-50 font-bold">Enregistrer la consultation</button>
+                    <button type="submit" id="btn-save-consult" disabled class="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold p-3 rounded-lg transition shadow-md">
+                        Valider et enregistrer la consultation
+                    </button>
                 </form>
             </div>
         </div>
 
-        <!-- Espace Patient (Accessible Librement & Directement) -->
-        <div id="patient-dashboard" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div class="bg-white p-6 rounded-lg shadow-md">
-                <h3 class="text-lg font-bold text-gray-800 mb-4">Prendre un Rendez-vous</h3>
+        <!-- 3. ESPACE PATIENT (Visible uniquement si Patient connecté) -->
+        <div id="patient-dashboard" class="hidden grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div class="bg-white p-6 rounded-xl shadow-md border border-slate-200">
+                <h3 class="text-lg font-bold text-slate-800 mb-6 border-b pb-3">Prendre RDV auprès d'un Spécialiste</h3>
                 <form onsubmit="submitPatientRdv(event)" class="space-y-4">
                     <div>
-                        <label class="block text-sm font-medium">Votre Nom complet</label>
-                        <input type="text" id="patient-nom-invite" required class="w-full border p-2 rounded" placeholder="Ex: Hassan Noufou">
+                        <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">Choisir un Médecin</label>
+                        <select id="select-medecin" required class="w-full border p-2.5 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"></select>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium">Médecin & Spécialité</label>
-                        <select id="select-medecin" required class="w-full border p-2 rounded"></select>
+                        <label class="block text-xs font-semibold uppercase text-slate-600 mb-1">Motif de Consultation</label>
+                        <input type="text" id="patient-motif" required class="w-full border p-2.5 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Ex: Fièvre prolongée, Bilan de routine...">
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium">Motif de consultation</label>
-                        <input type="text" id="patient-motif" required class="w-full border p-2 rounded" placeholder="Ex: Fièvre, Bilan de santé...">
-                    </div>
-                    <button type="submit" class="w-full bg-blue-600 text-white p-2 rounded font-bold hover:bg-blue-700">Valider le rendez-vous</button>
+                    <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold p-3 rounded-lg transition shadow-md">
+                        Confirmer le Rendez-vous
+                    </button>
                 </form>
             </div>
 
-            <div class="bg-white p-6 rounded-lg shadow-md">
-                <h3 class="text-lg font-bold text-gray-800 mb-4">Rendez-vous enregistrés</h3>
-                <div id="patient-rdv-list" class="space-y-3"></div>
+            <div class="bg-white p-6 rounded-xl shadow-md border border-slate-200">
+                <h3 class="text-lg font-bold text-slate-800 mb-6 border-b pb-3">Mon Historique Médical</h3>
+                <div id="patient-rdv-list" class="space-y-4"></div>
             </div>
         </div>
 
-    </div>
+    </main>
 
     <script>
+        let isRegister = false;
+
         function checkAuth() {
             const token = localStorage.getItem('token');
             const role = (localStorage.getItem('role') || '').toUpperCase();
             const nom = localStorage.getItem('nom') || '';
             const prenom = localStorage.getItem('prenom') || '';
 
-            // Par défaut
-            document.getElementById('auth-container').classList.add('hidden');
+            // Masquer tout par défaut
+            document.getElementById('auth-portal').classList.add('hidden');
+            document.getElementById('user-session').classList.add('hidden');
             document.getElementById('medecin-dashboard').classList.add('hidden');
-            document.getElementById('btn-pro-login').classList.remove('hidden');
-            document.getElementById('user-info').classList.add('hidden');
-            
-            // L'espace patient reste visible par défaut
-            document.getElementById('patient-dashboard').classList.remove('hidden');
-            loadPatientData();
+            document.getElementById('patient-dashboard').classList.add('hidden');
 
-            // Si c'est un Médecin ou un Admin connecté
-            if (token && (role === 'MEDECIN' || role === 'ADMIN')) {
-                document.getElementById('btn-pro-login').classList.add('hidden');
-                document.getElementById('user-info').classList.remove('hidden');
-                document.getElementById('user-display').innerText = `Dr. ${prenom} ${nom}`.trim();
+            if (token && role) {
+                document.getElementById('user-session').classList.remove('hidden');
+                document.getElementById('user-display-name').innerText = role === 'MEDECIN' ? `Dr. ${prenom} ${nom}` : `${prenom} ${nom}`;
+                document.getElementById('user-display-role').innerText = role === 'MEDECIN' ? 'Médecin / Praticien' : 'Patient';
 
-                document.getElementById('patient-dashboard').classList.add('hidden');
-                document.getElementById('medecin-dashboard').classList.remove('hidden');
-                loadMedecinData();
+                if (role === 'MEDECIN') {
+                    document.getElementById('medecin-dashboard').classList.remove('hidden');
+                    loadMedecinData();
+                } else if (role === 'PATIENT') {
+                    document.getElementById('patient-dashboard').classList.remove('hidden');
+                    loadPatientData();
+                }
+            } else {
+                document.getElementById('auth-portal').classList.remove('hidden');
             }
         }
 
-        function showProLogin() {
-            document.getElementById('auth-container').classList.remove('hidden');
+        function toggleAuthMode() {
+            isRegister = !isRegister;
+            document.getElementById('auth-title').innerText = isRegister ? "Inscription Portail" : "Connexion au Portail";
+            document.getElementById('auth-btn').innerText = isRegister ? "S'inscrire" : "Se Connecter";
+            document.getElementById('toggle-auth').innerText = isRegister ? "Déjà un compte ? Se connecter" : "Créer un compte";
+            document.getElementById('register-fields').classList.toggle('hidden', !isRegister);
         }
 
-        function cancelProLogin() {
-            document.getElementById('auth-container').classList.add('hidden');
+        function toggleSpecialite() {
+            const roleSelect = document.getElementById('role').value;
+            document.getElementById('specialite-container').classList.toggle('hidden', roleSelect !== 'MEDECIN');
         }
 
         async function handleAuth(e) {
@@ -156,28 +203,38 @@
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
 
+            const endpoint = isRegister ? '/api/auth/register' : '/api/auth/login';
+            const body = isRegister ? {
+                email, password,
+                nom: document.getElementById('nom').value,
+                prenom: document.getElementById('prenom').value,
+                role: document.getElementById('role').value,
+                specialite: document.getElementById('role').value === 'MEDECIN' ? document.getElementById('specialite').value : null
+            } : { email, password };
+
             try {
-                const res = await fetch('/api/auth/login', {
+                const res = await fetch(endpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password })
+                    body: JSON.stringify(body)
                 });
                 const data = await res.json();
                 if (res.ok) {
-                    if (data.role === 'MEDECIN' || data.role === 'ADMIN') {
+                    if (isRegister) {
+                        alert("Compte créé ! Connectez-vous.");
+                        toggleAuthMode();
+                    } else {
                         localStorage.setItem('token', data.access_token);
                         localStorage.setItem('role', data.role);
                         localStorage.setItem('nom', data.nom || '');
                         localStorage.setItem('prenom', data.prenom || '');
                         checkAuth();
-                    } else {
-                        alert("Accès refusé. Cet espace est réservé aux médecins et administrateurs.");
                     }
                 } else {
-                    alert(data.detail || "Identifiants incorrects.");
+                    alert(data.detail || "Erreur lors de l'authentification");
                 }
             } catch (err) {
-                alert("Erreur réseau : " + err.message);
+                alert("Erreur réseau: " + err.message);
             }
         }
 
@@ -186,7 +243,9 @@
             checkAuth();
         }
 
+        // PATIENT LOGIC
         async function loadPatientData() {
+            const token = localStorage.getItem('token');
             const resMed = await fetch('/api/patient/medecins');
             const medecins = await resMed.json();
             const selectMed = document.getElementById('select-medecin');
@@ -199,19 +258,30 @@
                 ).join('');
             }
 
-            const resRdv = await fetch('/api/patient/my-rdv');
+            const resRdv = await fetch('/api/patient/my-rdv', { headers: { 'Authorization': `Bearer ${token}` } });
+            if (!resRdv.ok) return;
             const rdvs = await resRdv.json();
             const list = document.getElementById('patient-rdv-list');
-            list.innerHTML = rdvs.length === 0 ? '<p class="text-gray-500 text-sm">Aucun rendez-vous enregistré.</p>' : '';
+            list.innerHTML = rdvs.length === 0 ? '<p class="text-slate-500 text-sm">Aucun rendez-vous dans votre dossier.</p>' : '';
 
             rdvs.forEach(r => {
                 const card = document.createElement('div');
-                card.className = "p-4 border rounded-lg bg-white shadow-sm space-y-2";
+                card.className = "p-4 border rounded-lg bg-slate-50 shadow-sm space-y-2";
                 card.innerHTML = `
-                    <div class="flex justify-between items-center">
-                        <span class="font-bold">Motif : ${r.motif}</span>
-                        <span class="px-2 py-1 text-xs rounded ${r.statut === 'TERMINE' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">${r.statut}</span>
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <span class="font-bold text-slate-800">${r.medecin_nom}</span>
+                            <span class="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded ml-2">${r.specialite}</span>
+                            <p class="text-sm text-slate-600 mt-1">Motif: ${r.motif}</p>
+                        </div>
+                        <span class="px-2.5 py-1 text-xs font-semibold rounded ${r.statut === 'TERMINE' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">${r.statut}</span>
                     </div>
+                    ${r.diagnostic ? `
+                        <div class="text-xs bg-white p-3 rounded border border-slate-200 mt-2 space-y-1">
+                            <p><strong>Diagnostic:</strong> ${r.diagnostic}</p>
+                            <p><strong>Prescription:</strong> ${r.prescription || 'Aucune'}</p>
+                        </div>
+                    ` : ''}
                 `;
                 list.appendChild(card);
             });
@@ -221,12 +291,12 @@
             e.preventDefault();
             const medecin_id = parseInt(document.getElementById('select-medecin').value);
             const motif = document.getElementById('patient-motif').value;
-            const nom_patient = document.getElementById('patient-nom-invite').value;
+            const token = localStorage.getItem('token');
 
             const res = await fetch('/api/patient/rdv', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ medecin_id, motif, nom_patient })
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ medecin_id, motif })
             });
 
             if (res.ok) {
@@ -236,25 +306,26 @@
             }
         }
 
+        // MEDECIN LOGIC
         async function loadMedecinData() {
             const token = localStorage.getItem('token');
             const res = await fetch('/api/medecin/rdv', { headers: { 'Authorization': `Bearer ${token}` } });
             if (!res.ok) return;
             const rdvs = await res.json();
             const listContainer = document.getElementById('rdv-list');
-            listContainer.innerHTML = rdvs.length === 0 ? '<p class="text-gray-500 text-sm">Aucun RDV en attente.</p>' : '';
+            listContainer.innerHTML = rdvs.length === 0 ? '<p class="text-slate-500 text-sm">Aucun rendez-vous attribué.</p>' : '';
 
             rdvs.forEach(rdv => {
                 const isTermine = rdv.statut === 'TERMINE';
                 const card = document.createElement('div');
-                card.className = `p-4 border rounded-lg flex justify-between items-center ${isTermine ? 'bg-gray-50 opacity-75' : 'bg-white shadow-sm'}`;
+                card.className = `p-4 border rounded-lg flex justify-between items-center ${isTermine ? 'bg-slate-50 border-slate-200' : 'bg-white border-indigo-100 shadow-sm'}`;
                 card.innerHTML = `
                     <div>
-                        <h4 class="font-bold">${rdv.prenom_patient || ''} ${rdv.nom_patient || 'Patient'}</h4>
-                        <p class="text-sm text-gray-600">Motif : ${rdv.motif}</p>
-                        <span class="inline-block px-2 py-1 text-xs font-semibold rounded ${isTermine ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">${rdv.statut}</span>
+                        <h4 class="font-bold text-slate-800">${rdv.prenom_patient} ${rdv.nom_patient}</h4>
+                        <p class="text-sm text-slate-600">Motif : ${rdv.motif}</p>
+                        <span class="inline-block px-2 py-0.5 text-xs font-semibold rounded mt-1 ${isTermine ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">${rdv.statut}</span>
                     </div>
-                    ${!isTermine ? `<button onclick="selectRdv(${rdv.id}, '${rdv.nom_patient || 'Patient'}')" class="px-3 py-1 bg-blue-600 text-white text-sm rounded">Consulter</button>` : '<span class="text-xs text-green-600 font-semibold">Terminé</span>'}
+                    ${!isTermine ? `<button onclick="selectRdv(${rdv.id}, '${rdv.prenom_patient} ${rdv.nom_patient}')" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded shadow-sm">Consulter</button>` : '<span class="text-xs text-emerald-600 font-semibold">Consulté</span>'}
                 `;
                 listContainer.appendChild(card);
             });
