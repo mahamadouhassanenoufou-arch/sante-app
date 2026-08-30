@@ -10,7 +10,7 @@ class User(Base):
     nom = Column(String, nullable=False)
     prenom = Column(String, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
-    password = Column(String, nullable=False)  # Nommé 'password' selon la base distante
+    password = Column(String, nullable=False)
     role = Column(String, nullable=False)
     
     lieu_exercice = Column(String, nullable=True)
