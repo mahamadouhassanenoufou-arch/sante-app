@@ -1,5 +1,6 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional
+from datetime import datetime
 
 # --- AUTHENTIFICATION & MOT DE PASSE ---
 class UserLogin(BaseModel):
@@ -9,9 +10,11 @@ class UserLogin(BaseModel):
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr
 
-class ResetPasswordRequest(BaseModel):
+class ResetPasswordConfirm(BaseModel):
     token: str
     new_password: str
+
+ResetPasswordRequest = ResetPasswordConfirm
 
 class Token(BaseModel):
     access_token: str
@@ -35,6 +38,21 @@ class UserCreate(UserBase):
 
 class UserResponse(UserBase):
     id: int
+    class Config:
+        from_attributes = True
+
+# --- CRENEAUX ---
+class CreneauBase(BaseModel):
+    date_heure_debut: datetime
+    date_heure_fin: datetime
+
+class CreneauCreate(CreneauBase):
+    pass
+
+class CreneauResponse(CreneauBase):
+    id: int
+    medecin_id: int
+    est_disponible: bool
     class Config:
         from_attributes = True
 
@@ -73,18 +91,3 @@ class RendezVousResponse(RendezVousBase):
     prescription: Optional[str] = None
     class Config:
         from_attributes = True
-        
-        # --- AUTHENTIFICATION & MOT DE PASSE ---
-class UserLogin(BaseModel):
-    email: EmailStr
-    password: str
-
-class ForgotPasswordRequest(BaseModel):
-    email: EmailStr
-
-class ResetPasswordConfirm(BaseModel):
-    token: str
-    new_password: str
-
-# Garder un alias au cas où d'autres routes utilisent l'autre nom
-ResetPasswordRequest = ResetPasswordConfirm
