@@ -287,25 +287,36 @@
             });
         }
 
-        async function submitPatientRdv(e) {
-            e.preventDefault();
-            const medecin_id = parseInt(document.getElementById('select-medecin').value);
-            const motif = document.getElementById('patient-motif').value;
-            const token = localStorage.getItem('token');
+async function validerRDV() {
+    const medecinSelect = document.getElementById("medecin-select"); // Adaptez l'ID selon votre HTML
+    const motifInput = document.getElementById("motif-input");       // Adaptez l'ID selon votre HTML
+    const token = localStorage.getItem("token");
 
-            const res = await fetch('/api/patient/rdv', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ medecin_id, motif })
-            });
+    if (!medecinSelect.value || !motifInput.value) {
+        alert("Veuillez choisir un médecin et saisir un motif.");
+        return;
+    }
 
-            if (res.ok) {
-                alert("Rendez-vous enregistré avec succès !");
-                document.getElementById('patient-motif').value = '';
-                loadPatientData();
-            }
-        }
+    const res = await fetch("/api/patient/rdv", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+            medecin_id: parseInt(medecinSelect.value),
+            motif: motifInput.value
+        })
+    });
 
+    if (res.ok) {
+        alert("Rendez-vous pris avec succès !");
+        location.reload();
+    } else {
+        const error = await res.json();
+        alert("Erreur : " + (error.detail || "Impossible de prendre le RDV"));
+    }
+}
         // MEDECIN LOGIC
         async function loadMedecinData() {
             const token = localStorage.getItem('token');
