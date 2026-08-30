@@ -1,17 +1,19 @@
 import enum
-from datetime import datetime
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Enum
+from sqlalchemy import Column, Integer, String, Text, ForeignKey, Enum, DateTime
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 from database import Base
 
-class StatusRdv(str, enum.Enum):
+class RoleEnum(str, enum.Enum):
+    PATIENT = "PATIENT"
+    MEDECIN = "MEDECIN"
+    ADMIN = "ADMIN"
+
+class StatutRDV(str, enum.Enum):
     EN_ATTENTE = "EN_ATTENTE"
     CONFIRME = "CONFIRME"
     TERMINE = "TERMINE"
     ANNULE = "ANNULE"
-class RoleEnum(str, enum.Enum):
-    PATIENT = "PATIENT"
-    MEDECIN = "MEDECIN"
 
 class User(Base):
     __tablename__ = "users"
@@ -21,31 +23,33 @@ class User(Base):
     prenom = Column(String, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
-    role = Column(Enum(RoleEnum), default=RoleEnum.PATIENT)
-    specialite = Column(String, nullable=True)  # <-- Nouveau champ pour la spécialité
+    role = Column(String, default="PATIENT")
+    specialite = Column(String, nullable=True)
+
+    rdvs_patient = relationship("RendezVous", foreign_keys="RendezVous.patient_id", back_populates="patient")
+    rdvs_medecin = relationship("RendezVous", foreign_keys="RendezVous.medecin_id", back_populates="medecin")
+
 class RendezVous(Base):
     __tablename__ = "rendez_vous"
 
     id = Column(Integer, primary_key=True, index=True)
-    date_heure = Column(DateTime, default=datetime.utcnow)
+    patient_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    medecin_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     motif = Column(String, nullable=False)
-    statut = Column(Enum(StatusRdv, name="statutrdv"), default=StatusRdv.EN_ATTENTE)
+    statut = Column(Enum(StatutRDV), default=StatutRDV.EN_ATTENTE)
 
-    patient_id = Column(Integer, ForeignKey("users.id"))
-    medecin_id = Column(Integer, ForeignKey("users.id"))
-
-    patient = relationship("User", foreign_keys=[patient_id])
-    medecin = relationship("User", foreign_keys=[medecin_id])
+    patient = relationship("User", foreign_keys=[patient_id], back_populates="rdvs_patient")
+    medecin = relationship("User", foreign_keys=[medecin_id], back_populates="rdvs_medecin")
     consultation = relationship("Consultation", back_populates="rdv", uselist=False)
 
 class Consultation(Base):
     __tablename__ = "consultations"
 
     id = Column(Integer, primary_key=True, index=True)
-    date = Column(DateTime, default=datetime.utcnow)
-    symptomes = Column(Text, nullable=True)
+    rdv_id = Column(Integer, ForeignKey("rendez_vous.id"), nullable=False)
+    symptomes = Column(Text, nullable=False)
     diagnostic = Column(Text, nullable=False)
     prescription = Column(Text, nullable=True)
+    date = Column(DateTime(timezone=True), server_default=func.now())
 
-    rdv_id = Column(Integer, ForeignKey("rendez_vous.id"))
     rdv = relationship("RendezVous", back_populates="consultation")
