@@ -70,11 +70,16 @@ def login(user_credentials: schemas.UserLogin, db: Session = Depends(get_db)):
     if not user or not security.verify_password(user_credentials.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Email ou mot de passe incorrect")
     
-    access_token = security.create_access_token(data={"sub": user.email, "role": str(user.role)})
+    # Extraction propre de la valeur du role
+    user_role = user.role.value if hasattr(user.role, 'value') else str(user.role)
+    user_role = user_role.upper()
+
+    access_token = security.create_access_token(data={"sub": user.email, "role": user_role})
+    
     return {
         "access_token": access_token,
         "token_type": "bearer",
-        "role": str(user.role),
+        "role": user_role,
         "nom": user.nom,
         "prenom": user.prenom
     }

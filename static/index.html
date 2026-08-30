@@ -109,31 +109,34 @@
         let isRegister = false;
 
         function checkAuth() {
-            const token = localStorage.getItem('token');
-            const role = localStorage.getItem('role');
-            const nom = localStorage.getItem('nom') || '';
-            const prenom = localStorage.getItem('prenom') || '';
+    const token = localStorage.getItem('token');
+    // Forcer la conversion en majuscules pour éviter les erreurs de casse
+    const role = (localStorage.getItem('role') || '').toUpperCase();
+    const nom = localStorage.getItem('nom') || '';
+    const prenom = localStorage.getItem('prenom') || '';
 
-            document.getElementById('auth-container').classList.add('hidden');
-            document.getElementById('user-info').classList.add('hidden');
-            document.getElementById('medecin-dashboard').classList.add('hidden');
-            document.getElementById('patient-dashboard').classList.add('hidden');
+    // Masquer toutes les sections
+    document.getElementById('auth-container').classList.add('hidden');
+    document.getElementById('user-info').classList.add('hidden');
+    document.getElementById('medecin-dashboard').classList.add('hidden');
+    document.getElementById('patient-dashboard').classList.add('hidden');
 
-            if (token && role) {
-                document.getElementById('user-info').classList.remove('hidden');
-                document.getElementById('user-display').innerText = `${role === 'MEDECIN' ? 'Dr. ' : ''}${prenom} ${nom}`.trim();
+    if (token && role) {
+        document.getElementById('user-info').classList.remove('hidden');
+        document.getElementById('user-display').innerText = `${role === 'MEDECIN' ? 'Dr. ' : ''}${prenom} ${nom}`.trim();
 
-                if (role === 'MEDECIN') {
-                    document.getElementById('medecin-dashboard').classList.remove('hidden');
-                    loadMedecinData();
-                } else {
-                    document.getElementById('patient-dashboard').classList.remove('hidden');
-                    loadPatientData();
-                }
-            } else {
-                document.getElementById('auth-container').classList.remove('hidden');
-            }
+        // Redirection explicite selon le rôle
+        if (role === 'MEDECIN') {
+            document.getElementById('medecin-dashboard').classList.remove('hidden');
+            loadMedecinData();
+        } else if (role === 'PATIENT') {
+            document.getElementById('patient-dashboard').classList.remove('hidden');
+            loadPatientData();
         }
+    } else {
+        document.getElementById('auth-container').classList.remove('hidden');
+    }
+}
 
         function toggleAuthMode() {
             isRegister = !isRegister;
