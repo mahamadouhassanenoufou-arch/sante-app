@@ -13,20 +13,28 @@ app = FastAPI(title="Santé App")
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# Synchronisation sécurisée des tables et colonnes PostgreSQL
-try:
-    models.Base.metadata.create_all(bind=engine)
-    with engine.connect() as conn:
-        conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS specialite VARCHAR;"))
-        conn.execute(text("ALTER TABLE consultations ADD COLUMN IF NOT EXISTS rdv_id INTEGER REFERENCES rendez_vous(id);"))
-        conn.execute(text("ALTER TABLE consultations ADD COLUMN IF NOT EXISTS prescription TEXT;"))
-        conn.execute(text("ALTER TABLE consultations ADD COLUMN IF NOT EXISTS date TIMESTAMP DEFAULT CURRENT_TIMESTAMP;"))
-        # Alignement pour la table rendez_vous
-        conn.execute(text("ALTER TABLE rendez_vous ADD COLUMN IF NOT EXISTS date_heure TIMESTAMP DEFAULT CURRENT_TIMESTAMP;"))
-        conn.execute(text("ALTER TABLE rendez_vous ALTER COLUMN date_heure SET DEFAULT CURRENT_TIMESTAMP;"))
-        conn.commit()
-except Exception as e:
-    print(f"Sync DB warning: {e}")
+# Correction et alignement brut de la structure PostgreSQL
+@app.on_event("startup")
+def startup_db_check():
+    try:
+        models.Base.metadata.create_all(bind=engine)
+        with engine.connect() as conn:
+            # 1. Mise à jour de la table users
+            conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS specialite VARCHAR;"))
+            
+            # 2. Reconstitution / Alignement strict de la table rendez_vous
+            conn.execute(text("ALTER TABLE rendez_vous ADD COLUMN IF NOT EXISTS date_heure TIMESTAMP DEFAULT CURRENT_TIMESTAMP;"))
+            conn.execute(text("ALTER TABLE rendez_vous ALTER COLUMN date_heure DROP NOT NULL;"))
+            
+            # 3. Alignement consultations
+            conn.execute(text("ALTER TABLE consultations ADD COLUMN IF NOT EXISTS rdv_id INTEGER REFERENCES rendez_vous(id);"))
+            conn.execute(text("ALTER TABLE consultations ADD COLUMN IF NOT EXISTS prescription TEXT;"))
+            conn.execute(text("ALTER TABLE consultations ADD COLUMN IF NOT EXISTS date TIMESTAMP DEFAULT CURRENT_TIMESTAMP;"))
+            
+            conn.commit()
+            print("DB Migration et alignement réussis !")
+    except Exception as e:
+        print(f"Erreur lors de la migration DB : {e}")
 
 @app.get("/")
 def read_index():
@@ -102,27 +110,35 @@ def create_rdv(
     if not medecin:
         raise HTTPException(status_code=404, detail="Le médecin sélectionné n'existe pas.")
 
-    # Détermination sécurisée du statut
-    statut_val = "EN_ATTENTE"
-    if hasattr(models, "StatutRDV") and hasattr(models.StatutRDV, "EN_ATTENTE"):
-        statut_val = models.StatutRDV.EN_ATTENTE.value if hasattr(models.StatutRDV.EN_ATTENTE, 'value') else "EN_ATTENTE"
-
-    # Création directe sécurisée avec date_heure explicite
-    new_rdv = models.RendezVous(
-        patient_id=int(current_user.id),
-        medecin_id=int(data.medecin_id),
-        motif=data.motif,
-        statut=statut_val,
-        date_heure=datetime.utcnow()
-    )
-
+    # Création ultra-sécurisée du RDV
     try:
+        new_rdv = models.RendezVous(
+            patient_id=int(current_user.id),
+            medecin_id=int(data.medecin_id),
+            motif=data.motif,
+            statut="EN_ATTENTE",
+            date_heure=datetime.utcnow()
+        )
         db.add(new_rdv)
         db.commit()
         db.refresh(new_rdv)
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Erreur DB SQL: {str(e)}")
+        # Fallback de secours par SQL direct si le modèle ORM coince sur des colonnes Enum/NULL
+        try:
+            sql = text("""
+                INSERT INTO rendez_vous (patient_id, medecin_id, motif, statut, date_heure) 
+                VALUES (:p_id, :m_id, :motif, 'EN_ATTENTE', NOW())
+            """)
+            db.execute(sql, {
+                "p_id": int(current_user.id),
+                "m_id": int(data.medecin_id),
+                "motif": data.motif
+            })
+            db.commit()
+        except Exception as err_fallback:
+            db.rollback()
+            raise HTTPException(status_code=500, detail=f"Erreur insertion RDV : {str(err_fallback)}")
 
     return {"message": "Rendez-vous enregistré avec succès"}
 
@@ -203,11 +219,7 @@ def create_consultation(
         prescription=data.prescription
     )
     
-    statut_done = "TERMINE"
-    if hasattr(models, "StatutRDV") and hasattr(models.StatutRDV, "TERMINE"):
-        statut_done = models.StatutRDV.TERMINE.value if hasattr(models.StatutRDV.TERMINE, 'value') else "TERMINE"
-        
-    rdv.statut = statut_done
+    rdv.statut = "TERMINE"
     
     try:
         db.add(consult)
