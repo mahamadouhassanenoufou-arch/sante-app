@@ -73,3 +73,18 @@ class RendezVousResponse(RendezVousBase):
     prescription: Optional[str] = None
     class Config:
         from_attributes = True
+        
+        # --- AUTHENTIFICATION & MOT DE PASSE ---
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+class ResetPasswordConfirm(BaseModel):
+    token: str
+    new_password: str
+
+# Garder un alias au cas où d'autres routes utilisent l'autre nom
+ResetPasswordRequest = ResetPasswordConfirm
