@@ -122,8 +122,8 @@ def create_consultation(data: schemas.ConsultationCreate, db: Session = Depends(
             prescription=data.prescription
         )
         
-        # Attribution de l'Enum typée
-        rdv.statut = models.StatusRdv.TERMINE
+        # Mise a jour via la valeur brute de l'enum
+        rdv.statut = "TERMINE"
         
         db.add(consultation)
         db.commit()
@@ -133,7 +133,8 @@ def create_consultation(data: schemas.ConsultationCreate, db: Session = Depends(
         raise
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Erreur enregistrement consultation: {str(e)}")
+        print(f"Erreur enregistrement consultation: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 @app.post("/api/dev/seed-rdv")
 def seed_rdv(db: Session = Depends(get_db)):
     try:

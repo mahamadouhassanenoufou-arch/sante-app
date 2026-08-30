@@ -211,33 +211,41 @@
             document.getElementById('btn-save-consult').disabled = false;
         }
 
-        async function submitConsultation(e) {
-            e.preventDefault();
-            const rdv_id = parseInt(document.getElementById('consult-rdv-id').value);
-            const symptomes = document.getElementById('consult-symptomes').value;
-            const diagnostic = document.getElementById('consult-diagnostic').value;
-            const prescription = document.getElementById('consult-prescription').value;
+       async function submitConsultation(e) {
+    e.preventDefault();
+    const rdv_id = parseInt(document.getElementById('consult-rdv-id').value);
+    const symptomes = document.getElementById('consult-symptomes').value;
+    const diagnostic = document.getElementById('consult-diagnostic').value;
+    const prescription = document.getElementById('consult-prescription').value;
+    const token = localStorage.getItem('token');
 
-            const res = await fetch('/api/medecin/consultation', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ rdv_id, symptomes, diagnostic, prescription })
-            });
+    try {
+        const res = await fetch('/api/medecin/consultation', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ rdv_id, symptomes, diagnostic, prescription })
+        });
 
-            if (res.ok) {
-                alert("Consultation enregistrée !");
-                document.getElementById('consult-rdv-id').value = '';
-                document.getElementById('consult-patient-name').value = '';
-                document.getElementById('consult-symptomes').value = '';
-                document.getElementById('consult-diagnostic').value = '';
-                document.getElementById('consult-prescription').value = '';
-                document.getElementById('btn-save-consult').disabled = true;
-                loadMedecinData();
-            } else {
-                alert("Erreur lors de l'enregistrement de la consultation.");
-            }
+        if (res.ok) {
+            alert("Consultation enregistrée avec succès !");
+            document.getElementById('consult-rdv-id').value = '';
+            document.getElementById('consult-patient-name').value = '';
+            document.getElementById('consult-symptomes').value = '';
+            document.getElementById('consult-diagnostic').value = '';
+            document.getElementById('consult-prescription').value = '';
+            document.getElementById('btn-save-consult').disabled = true;
+            loadMedecinData();
+        } else {
+            const errData = await res.json();
+            alert("Erreur API: " + JSON.stringify(errData.detail || errData));
         }
-
+    } catch (err) {
+        alert("Erreur réseau/client: " + err.message);
+    }
+}
         function checkSession() {
             const token = localStorage.getItem('token');
             const role = localStorage.getItem('role');
