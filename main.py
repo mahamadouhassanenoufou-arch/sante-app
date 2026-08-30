@@ -5,17 +5,25 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 
 import models
 import schemas
 import security
 from database import get_db, engine
 
-# Création des tables DB
+# Création des tables DB & Auto-migration des colonnes manquantes
 try:
     models.Base.metadata.create_all(bind=engine)
+    
+    # Correction automatique du schéma Postgres si des colonnes manquent dans 'consultations'
+    with engine.connect() as conn:
+        conn.execute(text("ALTER TABLE consultations ADD COLUMN IF NOT EXISTS date TIMESTAMP DEFAULT CURRENT_TIMESTAMP;"))
+        conn.execute(text("ALTER TABLE consultations ADD COLUMN IF NOT EXISTS prescription TEXT;"))
+        conn.commit()
+    print("Base de données synchronisée avec succès.")
 except Exception as e:
-    print(f"Erreur création tables: {e}")
+    print(f"Note/Erreur DB sync: {e}")
 
 app = FastAPI(title="Santé App API", version="2.0")
 
@@ -89,8 +97,6 @@ def login(user_credentials: schemas.UserLogin, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erreur connexion: {str(e)}")
 
-# (Garder le début du fichier main.py inchangé)
-
 @app.get("/api/medecin/rdv", response_model=List[schemas.RdvOut])
 def get_medecin_rdv(db: Session = Depends(get_db)):
     rdvs = db.query(models.RendezVous).all()
@@ -101,7 +107,7 @@ def get_medecin_rdv(db: Session = Depends(get_db)):
             "id": r.id,
             "date_heure": r.date_heure,
             "motif": r.motif,
-            "statut": r.statut.value if hasattr(r.statut, 'value') else str(r.statut),
+            "statut": str(r.statut.value) if hasattr(r.statut, 'value') else str(r.statut),
             "patient_id": r.patient_id,
             "nom_patient": patient.nom if patient else "Inconnu",
             "prenom_patient": patient.prenom if patient else ""
@@ -122,7 +128,6 @@ def create_consultation(data: schemas.ConsultationCreate, db: Session = Depends(
             prescription=data.prescription
         )
         
-        # Mise a jour via la valeur brute de l'enum
         rdv.statut = "TERMINE"
         
         db.add(consultation)
@@ -133,8 +138,8 @@ def create_consultation(data: schemas.ConsultationCreate, db: Session = Depends(
         raise
     except Exception as e:
         db.rollback()
-        print(f"Erreur enregistrement consultation: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Erreur enregistrement consultation: {str(e)}")
+
 @app.post("/api/dev/seed-rdv")
 def seed_rdv(db: Session = Depends(get_db)):
     try:
@@ -158,13 +163,13 @@ def seed_rdv(db: Session = Depends(get_db)):
 
         rdv1 = models.RendezVous(
             motif="Consultation générale",
-            statut=models.StatusRdv.EN_ATTENTE,
+            statut="EN_ATTENTE",
             patient_id=patient.id,
             medecin_id=medecin.id
         )
         rdv2 = models.RendezVous(
             motif="Suivi bilan de santé",
-            statut=models.StatusRdv.EN_ATTENTE,
+            statut="EN_ATTENTE",
             patient_id=patient.id,
             medecin_id=medecin.id
         )
