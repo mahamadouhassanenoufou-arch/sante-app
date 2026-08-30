@@ -120,7 +120,7 @@ def get_list_medecins(db: Session = Depends(get_db)):
     ]
 
 @app.post("/api/patient/rdv")
-def create_rdv(data: schemas.RDVCreate, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(get_db)):
+def create_rdv(data: schemas.RdvCreate, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(get_db)):
     if current_user.role != "PATIENT":
         raise HTTPException(status_code=403, detail="Accès réservé aux patients.")
     
