@@ -1,135 +1,158 @@
+import os
+import smtplib
+from email.message import EmailMessage
+from datetime import datetime, timedelta
+from typing import List, Optional
+
 from fastapi import FastAPI, Depends, HTTPException, status
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from typing import List
-from database import engine, get_db, Base
-import models
-import schemas
-import security
 
-Base.metadata.create_all(bind=engine)
+import models, schemas, utils
+from database import engine, get_db
 
-app = FastAPI(title="SantéApp Backend API", version="1.0.0")
+# Création des tables dans la base de données PostgreSQL
+models.Base.metadata.create_all(bind=engine)
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app = FastAPI(title="SantéApp API")
 
-@app.get("/")
-def read_root():
-    return FileResponse("static/index.html")
+# Configuration CORS pour autoriser le PWA frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-# --- AUTHENTIFICATION ---
+# --- HELPER SMTP (AVEC ERREUR CAPTURÉE) ---
+def send_email_safe(to_email: str, subject: str, content: str):
+    mail_server = os.getenv("MAIL_SERVER", "smtp.gmail.com")
+    mail_port = int(os.getenv("MAIL_PORT", 587))
+    mail_user = os.getenv("MAIL_USERNAME")
+    mail_pass = os.getenv("MAIL_PASSWORD")
 
-@app.post("/api/auth/register", response_model=schemas.UserResponse, status_code=status.HTTP_201_CREATED)
-def register(user_data: schemas.UserCreate, db: Session = Depends(get_db)):
-    db_user = db.query(models.User).filter(models.User.email == user_data.email).first()
+    if not mail_user or not mail_pass:
+        print(" [SMTP WARN] Variables SMTP non définies. Mail ignoré.")
+        return
+
+    try:
+        msg = EmailMessage()
+        msg["Subject"] = subject
+        msg["From"] = mail_user
+        msg["To"] = to_email
+        msg.set_content(content)
+
+        with smtplib.SMTP(mail_server, mail_port, timeout=10) as server:
+            server.starttls()
+            server.login(mail_user, mail_pass)
+            server.send_message(msg)
+        print(f" [SMTP OK] Mail envoyé à {to_email}")
+    except Exception as e:
+        print(f" [SMTP ERROR] Échec de l'envoi du mail à {to_email} : {e}")
+
+
+# --- ROUTES AUTHENTIFICATION ---
+
+@app.post("/api/register", response_model=schemas.UserResponse, status_code=status.HTTP_201_CREATED)
+def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
+    db_user = db.query(models.User).filter(models.User.email == user.email).first()
     if db_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Un compte existe déjà avec cette adresse email."
-        )
-
-    hashed_pwd = security.get_password_hash(user_data.password)
+        raise HTTPException(status_code=400, detail="Cet e-mail est déjà utilisé.")
+    
+    hashed_pwd = utils.hash_password(user.password)
     new_user = models.User(
-        nom=user_data.nom,
-        prenom=user_data.prenom,
-        email=user_data.email,
-        hashed_password=hashed_pwd,
-        role=user_data.role.upper(),
-        specialite=user_data.specialite if user_data.role.upper() == "MEDECIN" else None
+        nom=user.nom,
+        prenom=user.prenom,
+        email=user.email,
+        password=hashed_pwd,
+        role=user.role,
+        specialite=user.specialite,
+        hopital=user.hopital
     )
-
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
+
+    # Tentative d'envoi d'e-mail de bienvenue sans bloquer la réponse en cas d'erreur
+    send_email_safe(
+        to_email=new_user.email,
+        subject="Bienvenue sur SantéApp",
+        content=f"Bonjour {new_user.prenom},\n\nVotre compte a été créé avec succès."
+    )
+
     return new_user
 
 
-@app.post("/api/auth/login", response_model=schemas.Token)
-def login(credentials: schemas.UserLogin, db: Session = Depends(get_db)):
-    user = db.query(models.User).filter(models.User.email == credentials.email).first()
-    if not user or not security.verify_password(credentials.password, user.hashed_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Email ou mot de passe incorrect."
-        )
+@app.post("/api/login", response_model=schemas.Token)
+def login(user_credentials: schemas.UserLogin, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.email == user_credentials.email).first()
+    if not user or not utils.verify_password(user_credentials.password, user.password):
+        raise HTTPException(status_code=401, detail="Identifiants incorrects.")
 
-    access_token = security.create_access_token(data={"sub": user.email})
-    return {
-        "access_token": access_token,
-        "token_type": "bearer",
-        "role": user.role,
-        "nom": user.nom,
-        "prenom": user.prenom
-    }
+    access_token = utils.create_access_token(data={"sub": user.email, "role": user.role})
+    return {"access_token": access_token, "token_type": "bearer"}
 
 
-@app.post("/api/auth/forgot-password")
+@app.post("/api/forgot-password")
 def forgot_password(payload: schemas.ForgotPasswordRequest, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.email == payload.email).first()
     if not user:
-        return {"message": "Si l'adresse email existe, un lien de réinitialisation a été généré."}
+        # Réponse générique pour des raisons de sécurité
+        return {"message": "Si l'adresse existe, un e-mail de réinitialisation a été envoyé."}
     
-    reset_token = security.create_reset_password_token(user.email)
-    print(f"\n[RESET PASSWORD KEY] Token généré pour {user.email} : {reset_token}\n")
-    return {"message": "Si l'adresse email existe, un lien de réinitialisation a été généré."}
+    reset_token = utils.create_access_token(data={"sub": user.email}, expires_delta=timedelta(minutes=15))
+    
+    # Envoi sécurisé du lien par mail
+    send_email_safe(
+        to_email=user.email,
+        subject="Réinitialisation de votre mot de passe",
+        content=f"Bonjour,\n\nVoici votre jeton de réinitialisation : {reset_token}"
+    )
+
+    return {"message": "Si l'adresse existe, un e-mail de réinitialisation a été envoyé."}
 
 
-@app.post("/api/auth/reset-password")
+@app.post("/api/reset-password")
 def reset_password(payload: schemas.ResetPasswordConfirm, db: Session = Depends(get_db)):
-    email = security.verify_reset_password_token(payload.token)
+    email = utils.verify_token(payload.token)
     if not email:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Le jeton de réinitialisation est invalide ou a expiré."
-        )
-    
+        raise HTTPException(status_code=400, detail="Jeton invalide ou expiré.")
+
     user = db.query(models.User).filter(models.User.email == email).first()
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Utilisateur non trouvé."
-        )
-    
-    user.hashed_password = security.get_password_hash(payload.new_password)
+        raise HTTPException(status_code=404, detail="Utilisateur introuvable.")
+
+    user.password = utils.hash_password(payload.new_password)
     db.commit()
-    return {"message": "Le mot de passe a été réinitialisé avec succès."}
+
+    return {"message": "Mot de passe réinitialisé avec succès."}
 
 
-# --- GESTION DES CRÉNEAUX HORAIRES ---
+# --- ROUTES CRENEAUX ---
 
 @app.post("/api/creneaux", response_model=schemas.CreneauResponse, status_code=status.HTTP_201_CREATED)
-def create_creneau(
-    creneau_data: schemas.CreneauCreate,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(security.get_current_user)
-):
-    if current_user.role != "MEDECIN":
-        raise HTTPException(status_code=403, detail="Seuls les médecins peuvent ajouter des créneaux.")
-    
-    if creneau_data.date_heure_fin <= creneau_data.date_heure_debut:
-        raise HTTPException(status_code=400, detail="La date de fin doit être supérieure à la date de début.")
-
-    new_creneau = models.Creneau(
-        medecin_id=current_user.id,
-        date_heure_debut=creneau_data.date_heure_debut,
-        date_heure_fin=creneau_data.date_heure_fin,
-        est_disponible=True
-    )
+def create_creneau(creneau: schemas.CreneauCreate, db: Session = Depends(get_db)):
+    new_creneau = models.Creneau(**creneau.dict())
     db.add(new_creneau)
     db.commit()
     db.refresh(new_creneau)
     return new_creneau
 
 
-@app.get("/api/medecins/{medecin_id}/creneaux", response_model=List[schemas.CreneauResponse])
-def get_medecin_creneaux(medecin_id: int, db: Session = Depends(get_db)):
-    return db.query(models.Creneau).filter(
-        models.Creneau.medecin_id == medecin_id,
-        models.Creneau.est_disponible == True
-    ).all()
+# --- ROUTES RENDEZ-VOUS ---
+
+@app.post("/api/rendez-vous", response_model=schemas.RendezVousResponse, status_code=status.HTTP_201_CREATED)
+def create_rendez_vous(rdv: schemas.RendezVousCreate, db: Session = Depends(get_db)):
+    new_rdv = models.RendezVous(**rdv.dict(), statut="en_attente")
+    db.add(new_rdv)
+    db.commit()
+    db.refresh(new_rdv)
+    return new_rdv
 
 
-@app.get("/api/medecins", response_model=List[schemas.UserResponse])
-def get_medecins(db: Session = Depends(get_db)):
-    return db.query(models.User).filter(models.User.role == "MEDECIN").all()
+# --- ROUTE SANTÉ SYSTEME ---
+
+@app.get("/")
+def read_root():
+    return {"status": "ok", "app": "SantéApp API"}
