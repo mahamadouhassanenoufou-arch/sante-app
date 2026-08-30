@@ -21,6 +21,9 @@ try:
         conn.execute(text("ALTER TABLE consultations ADD COLUMN IF NOT EXISTS rdv_id INTEGER REFERENCES rendez_vous(id);"))
         conn.execute(text("ALTER TABLE consultations ADD COLUMN IF NOT EXISTS prescription TEXT;"))
         conn.execute(text("ALTER TABLE consultations ADD COLUMN IF NOT EXISTS date TIMESTAMP DEFAULT CURRENT_TIMESTAMP;"))
+        # Alignement pour la table rendez_vous
+        conn.execute(text("ALTER TABLE rendez_vous ADD COLUMN IF NOT EXISTS date_heure TIMESTAMP DEFAULT CURRENT_TIMESTAMP;"))
+        conn.execute(text("ALTER TABLE rendez_vous ALTER COLUMN date_heure SET DEFAULT CURRENT_TIMESTAMP;"))
         conn.commit()
 except Exception as e:
     print(f"Sync DB warning: {e}")
@@ -99,24 +102,19 @@ def create_rdv(
     if not medecin:
         raise HTTPException(status_code=404, detail="Le médecin sélectionné n'existe pas.")
 
+    # Détermination sécurisée du statut
     statut_val = "EN_ATTENTE"
     if hasattr(models, "StatutRDV") and hasattr(models.StatutRDV, "EN_ATTENTE"):
         statut_val = models.StatutRDV.EN_ATTENTE.value if hasattr(models.StatutRDV.EN_ATTENTE, 'value') else "EN_ATTENTE"
 
-    now = datetime.utcnow()
+    # Création directe sécurisée avec date_heure explicite
     new_rdv = models.RendezVous(
         patient_id=int(current_user.id),
         medecin_id=int(data.medecin_id),
         motif=data.motif,
         statut=statut_val,
-        date_heure=now
+        date_heure=datetime.utcnow()
     )
-    
-    # Sécurité pour remplir d'autres champs temporels optionnels s'ils existent dans le modèle
-    if hasattr(new_rdv, 'date') and getattr(new_rdv, 'date') is None:
-        setattr(new_rdv, 'date', now)
-    if hasattr(new_rdv, 'created_at') and getattr(new_rdv, 'created_at') is None:
-        setattr(new_rdv, 'created_at', now)
 
     try:
         db.add(new_rdv)
