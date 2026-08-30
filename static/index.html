@@ -15,8 +15,30 @@
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Style d'impression pour le PDF -->
+    <style>
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #print-area, #print-area * {
+                visibility: visible;
+            }
+            #print-area {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                padding: 20px;
+            }
+        }
+    </style>
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-800 font-sans">
+
+    <!-- Zone cachée dédiée à l'impression d'ordonnance PDF -->
+    <div id="print-area" class="hidden"></div>
 
     <!-- Barre de Navigation -->
     <nav class="bg-indigo-900 text-white px-6 py-4 flex justify-between items-center shadow-md">
@@ -25,7 +47,7 @@
             <span class="bg-indigo-700 text-xs text-indigo-200 px-2.5 py-1 rounded-full font-medium">Espace Sécurisé</span>
         </div>
         <div class="flex items-center space-x-4">
-            <!-- Bouton d'installation PWA (masqué par défaut) -->
+            <!-- Bouton d'installation PWA -->
             <button id="pwa-install-btn" onclick="installPWA()" class="hidden bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold px-3 py-2 rounded-lg transition flex items-center space-x-2">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
@@ -47,14 +69,13 @@
 
     <div class="max-w-6xl mx-auto p-6">
 
-        <!-- SECTION AUTHENTIFICATION (Login / Register) -->
+        <!-- SECTION AUTHENTIFICATION -->
         <div id="auth-section" class="max-w-md mx-auto bg-white p-8 rounded-2xl shadow-xl mt-10">
             <div class="flex justify-center space-x-4 mb-6 border-b pb-4">
                 <button id="tab-login" onclick="switchAuthTab('login')" class="text-indigo-600 font-bold border-b-2 border-indigo-600 pb-2 px-2">Connexion</button>
                 <button id="tab-register" onclick="switchAuthTab('register')" class="text-gray-500 font-bold border-b-2 border-transparent pb-2 px-2">Inscription</button>
             </div>
 
-            <!-- Formulaire de Connexion -->
             <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Email</label>
@@ -67,7 +88,6 @@
                 <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-lg transition">Se connecter</button>
             </form>
 
-            <!-- Formulaire d'Inscription -->
             <form id="register-form" onsubmit="handleRegister(event)" class="space-y-4 hidden">
                 <div>
                     <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Nom</label>
@@ -148,6 +168,7 @@
     <!-- SCRIPT APPLICATION -->
     <script>
         const API_URL = "";
+        let patientRdvsData = [];
 
         function getAuthHeader() {
             const token = localStorage.getItem("token");
@@ -299,6 +320,7 @@
             try {
                 const res = await fetch(`${API_URL}/api/patient/my-rdv`, { headers: getAuthHeader() });
                 const rdvs = await res.json();
+                patientRdvsData = rdvs;
                 const container = document.getElementById("patient-rdv-list");
 
                 if (!rdvs || rdvs.length === 0) {
@@ -321,6 +343,10 @@
                                 <p><strong>Symptômes:</strong> ${r.symptomes || '-'}</p>
                                 <p><strong>Diagnostic:</strong> ${r.diagnostic}</p>
                                 <p><strong>Ordonnance:</strong> <span class="text-indigo-700 font-semibold">${r.prescription || '-'}</span></p>
+                                <button onclick="printOrdonnance(${r.id})" class="mt-2 w-full bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold py-1.5 rounded transition flex items-center justify-center space-x-1">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                                    <span>Imprimer Ordonnance (PDF)</span>
+                                </button>
                             </div>
                         ` : ''}
                     </div>
@@ -328,6 +354,53 @@
             } catch (err) {
                 console.error("Erreur chargement RDV patient:", err);
             }
+        }
+
+        function printOrdonnance(rdvId) {
+            const rdv = patientRdvsData.find(item => item.id === rdvId);
+            if (!rdv) return;
+
+            const printArea = document.getElementById('print-area');
+            const patientNom = localStorage.getItem("nom") || "";
+            const patientPrenom = localStorage.getItem("prenom") || "";
+            const dateStr = new Date().toLocaleDateString('fr-FR');
+
+            printArea.innerHTML = `
+                <div style="font-family: Arial, sans-serif; max-width: 650px; margin: 0 auto; border: 2px solid #4f46e5; padding: 30px; border-radius: 12px; background: #ffffff;">
+                    <div style="display: flex; justify-space-between; border-bottom: 2px solid #4f46e5; padding-bottom: 15px; margin-bottom: 20px;">
+                        <div>
+                            <h2 style="color: #4f46e5; margin: 0; font-size: 24px;">${rdv.medecin_nom}</h2>
+                            <p style="margin: 3px 0; color: #666; font-size: 14px;">Spécialité: ${rdv.specialite}</p>
+                            <p style="margin: 3px 0; color: #666; font-size: 14px;">SantéApp Clinic - Niamey, Niger</p>
+                        </div>
+                        <div style="text-align: right;">
+                            <p style="margin: 0; font-size: 14px; color: #333;"><strong>Date:</strong> ${dateStr}</p>
+                            <p style="margin: 5px 0 0 0; font-size: 14px; color: #333;"><strong>Patient:</strong> ${patientPrenom} ${patientNom}</p>
+                        </div>
+                    </div>
+
+                    <h1 style="text-align: center; text-transform: uppercase; letter-spacing: 2px; color: #1e1b4b; font-size: 20px; margin: 25px 0;">Ordonnance Médicale</h1>
+
+                    <div style="margin-bottom: 20px;">
+                        <p style="font-size: 14px; margin: 5px 0;"><strong>Motif / Symptômes :</strong> ${rdv.symptomes || rdv.motif}</p>
+                        <p style="font-size: 14px; margin: 5px 0;"><strong>Diagnostic :</strong> ${rdv.diagnostic}</p>
+                    </div>
+
+                    <div style="background-color: #f8fafc; border-left: 4px solid #4f46e5; padding: 15px; margin: 25px 0; min-height: 120px;">
+                        <h3 style="margin-top: 0; font-size: 16px; color: #1e1b4b;">Prescription :</h3>
+                        <p style="font-size: 15px; white-space: pre-line; color: #334155; font-weight: 500;">${rdv.prescription}</p>
+                    </div>
+
+                    <div style="margin-top: 60px; text-align: right; padding-right: 30px;">
+                        <p style="font-size: 14px; font-weight: bold; margin-bottom: 50px;">Signature et Cachet du Praticien</p>
+                        <p style="font-size: 12px; color: #94a3b8;">${rdv.medecin_nom}</p>
+                    </div>
+                </div>
+            `;
+
+            printArea.classList.remove('hidden');
+            window.print();
+            printArea.classList.add('hidden');
         }
 
         async function loadMedecinRDVs() {
@@ -387,11 +460,10 @@
             }
         }
 
-        // Initialisation de l'état d'authentification au chargement
         window.onload = checkAuth;
     </script>
 
-    <!-- Gestion de l'installation PWA -->
+    <!-- Script Installation PWA -->
     <script>
         let deferredPrompt;
         const installBtn = document.getElementById('pwa-install-btn');
@@ -399,39 +471,30 @@
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
-            if (installBtn) {
-                installBtn.classList.remove('hidden');
-            }
+            if (installBtn) installBtn.classList.remove('hidden');
         });
 
         async function installPWA() {
             if (!deferredPrompt) return;
             deferredPrompt.prompt();
             const { outcome } = await deferredPrompt.userChoice;
-            if (outcome === 'accepted') {
-                console.log('Installation de la PWA acceptée');
-            }
+            if (outcome === 'accepted') console.log('PWA installée !');
             deferredPrompt = null;
-            if (installBtn) {
-                installBtn.classList.add('hidden');
-            }
+            if (installBtn) installBtn.classList.add('hidden');
         }
 
         window.addEventListener('appinstalled', () => {
-            console.log('PWA installée avec succès !');
-            if (installBtn) {
-                installBtn.classList.add('hidden');
-            }
+            if (installBtn) installBtn.classList.add('hidden');
         });
     </script>
 
-    <!-- Enregistrement du Service Worker pour PWA -->
+    <!-- Enregistrement Service Worker -->
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/static/sw.js')
-                    .then(reg => console.log('Service Worker PWA enregistré avec succès !', reg.scope))
-                    .catch(err => console.error('Échec enregistrement Service Worker PWA:', err));
+                    .then(reg => console.log('Service Worker PWA actif:', reg.scope))
+                    .catch(err => console.error('Erreur Service Worker:', err));
             });
         }
     </script>
