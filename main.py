@@ -13,9 +13,11 @@ import security
 from database import get_db, engine
 
 # Auto-migration des tables
+# Dans main.py, sous les imports et l'initialisation DB :
 try:
     models.Base.metadata.create_all(bind=engine)
     with engine.connect() as conn:
+        conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS specialite VARCHAR;"))
         conn.execute(text("ALTER TABLE consultations ADD COLUMN IF NOT EXISTS rdv_id INTEGER REFERENCES rendez_vous(id);"))
         conn.execute(text("ALTER TABLE consultations ADD COLUMN IF NOT EXISTS prescription TEXT;"))
         conn.execute(text("ALTER TABLE consultations ADD COLUMN IF NOT EXISTS date TIMESTAMP DEFAULT CURRENT_TIMESTAMP;"))
@@ -23,28 +25,7 @@ try:
 except Exception as e:
     print(f"Sync DB: {e}")
 
-app = FastAPI(title="Santé App API", version="2.0")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-if os.path.exists("static"):
-    app.mount("/static", StaticFiles(directory="static"), name="static")
-
-@app.get("/", response_class=HTMLResponse)
-async def serve_index():
-    possible_paths = ["static/index.html", "index.html"]
-    for path in possible_paths:
-        if os.path.exists(path):
-            with open(path, "r", encoding="utf-8") as f:
-                return f.read()
-    return "<h1>index.html non trouve</h1>"
-
+# Mettre à jour l'inscription
 @app.post("/api/auth/register", response_model=schemas.UserOut)
 def register_user(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
     db_user = db.query(models.User).filter(models.User.email == user_in.email).first()
@@ -57,13 +38,27 @@ def register_user(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
         prenom=user_in.prenom,
         email=user_in.email,
         hashed_password=hashed_pwd,
-        role=user_in.role
+        role=user_in.role.upper(),
+        specialite=user_in.specialite if user_in.role.upper() == "MEDECIN" else None
     )
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
     return new_user
 
+# Route mise à jour pour inclure la spécialité des médecins
+@app.get("/api/patient/medecins")
+def get_list_medecins(db: Session = Depends(get_db)):
+    medecins = db.query(models.User).filter(models.User.role == "MEDECIN").all()
+    return [
+        {
+            "id": m.id, 
+            "nom": m.nom, 
+            "prenom": m.prenom,
+            "specialite": m.specialite or "Généraliste"
+        } 
+        for m in medecins
+    ]
 @app.post("/api/auth/login", response_model=schemas.Token)
 def login(user_credentials: schemas.UserLogin, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.email == user_credentials.email).first()

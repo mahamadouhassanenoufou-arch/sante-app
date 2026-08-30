@@ -9,11 +9,9 @@ class StatusRdv(str, enum.Enum):
     CONFIRME = "CONFIRME"
     TERMINE = "TERMINE"
     ANNULE = "ANNULE"
-
 class RoleEnum(str, enum.Enum):
     PATIENT = "PATIENT"
     MEDECIN = "MEDECIN"
-    ADMIN = "ADMIN"
 
 class User(Base):
     __tablename__ = "users"
@@ -23,9 +21,8 @@ class User(Base):
     prenom = Column(String, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
-    role = Column(Enum(RoleEnum, name="roleenum"), default=RoleEnum.PATIENT)
-    telephone = Column(String, nullable=True)
-
+    role = Column(Enum(RoleEnum), default=RoleEnum.PATIENT)
+    specialite = Column(String, nullable=True)  # <-- Nouveau champ pour la spécialité
 class RendezVous(Base):
     __tablename__ = "rendez_vous"
 

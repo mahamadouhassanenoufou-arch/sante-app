@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from datetime import datetime
 from typing import Optional, List
 
@@ -6,9 +6,10 @@ from typing import Optional, List
 class UserCreate(BaseModel):
     nom: str
     prenom: str
-    email: str
+    email: EmailStr
     password: str
-    role: str = "PATIENT"
+    role: str
+    specialite: Optional[str] = None  # <-- Champ spécialité optionnel
 
 class UserOut(BaseModel):
     id: int
@@ -16,10 +17,10 @@ class UserOut(BaseModel):
     prenom: str
     email: str
     role: str
+    specialite: Optional[str] = None
 
     class Config:
         from_attributes = True
-
 class UserLogin(BaseModel):
     email: str
     password: str

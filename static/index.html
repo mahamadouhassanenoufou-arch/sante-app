@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Santé Numérique</title>
+    <title>Santé App</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 min-h-screen">
@@ -16,20 +16,36 @@
     </nav>
 
     <div class="container mx-auto mt-8 p-4">
-        <!-- Auth Container -->
+        <!-- Formulaire de Connexion / Inscription -->
         <div id="auth-container" class="max-w-md mx-auto bg-white p-6 rounded-lg shadow-md">
             <h2 id="auth-title" class="text-xl font-bold mb-4 text-center">Connexion</h2>
             <form onsubmit="handleAuth(event)" class="space-y-4">
                 <div id="name-fields" class="hidden">
                     <label class="block text-sm font-medium">Nom</label>
                     <input type="text" id="nom" class="w-full border p-2 rounded">
+                    
                     <label class="block text-sm font-medium mt-2">Prénom</label>
                     <input type="text" id="prenom" class="w-full border p-2 rounded">
+                    
                     <label class="block text-sm font-medium mt-2">Rôle</label>
-                    <select id="role" class="w-full border p-2 rounded">
+                    <select id="role" onchange="toggleSpecialite()" class="w-full border p-2 rounded">
                         <option value="PATIENT">Patient</option>
                         <option value="MEDECIN">Médecin</option>
                     </select>
+
+                    <!-- Champ de sélection de la spécialité -->
+                    <div id="specialite-container" class="hidden mt-2">
+                        <label class="block text-sm font-medium">Spécialité Médicale</label>
+                        <select id="specialite" class="w-full border p-2 rounded">
+                            <option value="Généraliste">Généraliste</option>
+                            <option value="Cardiologue">Cardiologue</option>
+                            <option value="Anesthésiste">Anesthésiste</option>
+                            <option value="Pédiatre">Pédiatre</option>
+                            <option value="Dermatologue">Dermatologue</option>
+                            <option value="Gyneco-Obstétricien">Gyneco-Obstétricien</option>
+                            <option value="Neurologue">Neurologue</option>
+                        </select>
+                    </div>
                 </div>
                 <div>
                     <label class="block text-sm font-medium">Email</label>
@@ -87,7 +103,7 @@
                 <h3 class="text-lg font-bold mb-4">Prendre un Rendez-vous</h3>
                 <form onsubmit="submitPatientRdv(event)" class="space-y-4">
                     <div>
-                        <label class="block text-sm font-medium">Médecin</label>
+                        <label class="block text-sm font-medium">Médecin & Spécialité</label>
                         <select id="select-medecin" required class="w-full border p-2 rounded"></select>
                     </div>
                     <div>
@@ -109,34 +125,31 @@
         let isRegister = false;
 
         function checkAuth() {
-    const token = localStorage.getItem('token');
-    // Forcer la conversion en majuscules pour éviter les erreurs de casse
-    const role = (localStorage.getItem('role') || '').toUpperCase();
-    const nom = localStorage.getItem('nom') || '';
-    const prenom = localStorage.getItem('prenom') || '';
+            const token = localStorage.getItem('token');
+            const role = (localStorage.getItem('role') || '').toUpperCase();
+            const nom = localStorage.getItem('nom') || '';
+            const prenom = localStorage.getItem('prenom') || '';
 
-    // Masquer toutes les sections
-    document.getElementById('auth-container').classList.add('hidden');
-    document.getElementById('user-info').classList.add('hidden');
-    document.getElementById('medecin-dashboard').classList.add('hidden');
-    document.getElementById('patient-dashboard').classList.add('hidden');
+            document.getElementById('auth-container').classList.add('hidden');
+            document.getElementById('user-info').classList.add('hidden');
+            document.getElementById('medecin-dashboard').classList.add('hidden');
+            document.getElementById('patient-dashboard').classList.add('hidden');
 
-    if (token && role) {
-        document.getElementById('user-info').classList.remove('hidden');
-        document.getElementById('user-display').innerText = `${role === 'MEDECIN' ? 'Dr. ' : ''}${prenom} ${nom}`.trim();
+            if (token && role) {
+                document.getElementById('user-info').classList.remove('hidden');
+                document.getElementById('user-display').innerText = `${role === 'MEDECIN' ? 'Dr. ' : ''}${prenom} ${nom}`.trim();
 
-        // Redirection explicite selon le rôle
-        if (role === 'MEDECIN') {
-            document.getElementById('medecin-dashboard').classList.remove('hidden');
-            loadMedecinData();
-        } else if (role === 'PATIENT') {
-            document.getElementById('patient-dashboard').classList.remove('hidden');
-            loadPatientData();
+                if (role === 'MEDECIN') {
+                    document.getElementById('medecin-dashboard').classList.remove('hidden');
+                    loadMedecinData();
+                } else if (role === 'PATIENT') {
+                    document.getElementById('patient-dashboard').classList.remove('hidden');
+                    loadPatientData();
+                }
+            } else {
+                document.getElementById('auth-container').classList.remove('hidden');
+            }
         }
-    } else {
-        document.getElementById('auth-container').classList.remove('hidden');
-    }
-}
 
         function toggleAuthMode() {
             isRegister = !isRegister;
@@ -144,6 +157,12 @@
             document.getElementById('auth-btn').innerText = isRegister ? "S'inscrire" : "Se connecter";
             document.getElementById('toggle-auth').innerText = isRegister ? "Déjà un compte ? Se connecter" : "Pas encore de compte ? S'inscrire";
             document.getElementById('name-fields').classList.toggle('hidden', !isRegister);
+        }
+
+        function toggleSpecialite() {
+            const roleSelect = document.getElementById('role').value;
+            const specContainer = document.getElementById('specialite-container');
+            specContainer.classList.toggle('hidden', roleSelect !== 'MEDECIN');
         }
 
         async function handleAuth(e) {
@@ -156,7 +175,8 @@
                 email, password,
                 nom: document.getElementById('nom').value,
                 prenom: document.getElementById('prenom').value,
-                role: document.getElementById('role').value
+                role: document.getElementById('role').value,
+                specialite: document.getElementById('role').value === 'MEDECIN' ? document.getElementById('specialite').value : null
             } : { email, password };
 
             try {
@@ -190,7 +210,68 @@
             checkAuth();
         }
 
-        // JS MEDECIN
+        // Chargement des données Patient (affichage Médecin + Spécialité)
+        async function loadPatientData() {
+            const resMed = await fetch('/api/patient/medecins');
+            const medecins = await resMed.json();
+            const selectMed = document.getElementById('select-medecin');
+
+            if (medecins.length === 0) {
+                selectMed.innerHTML = '<option value="">Aucun médecin disponible</option>';
+            } else {
+                selectMed.innerHTML = medecins.map(m => 
+                    `<option value="${m.id}">Dr. ${m.prenom} ${m.nom} (${m.specialite})</option>`
+                ).join('');
+            }
+
+            const resRdv = await fetch('/api/patient/my-rdv');
+            const rdvs = await resRdv.json();
+            const list = document.getElementById('patient-rdv-list');
+            list.innerHTML = rdvs.length === 0 ? '<p class="text-gray-500 text-sm">Aucun rendez-vous pris.</p>' : '';
+
+            rdvs.forEach(r => {
+                const card = document.createElement('div');
+                card.className = "p-4 border rounded-lg bg-white shadow-sm space-y-2";
+                card.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <span class="font-bold">Motif : ${r.motif}</span>
+                        <span class="px-2 py-1 text-xs rounded ${r.statut === 'TERMINE' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">${r.statut}</span>
+                    </div>
+                    ${r.diagnostic ? `
+                        <div class="text-sm bg-gray-50 p-2 rounded border mt-2">
+                            <p><strong>Diagnostic :</strong> ${r.diagnostic}</p>
+                            <p><strong>Prescription :</strong> ${r.prescription || 'Aucune'}</p>
+                        </div>
+                    ` : ''}
+                `;
+                list.appendChild(card);
+            });
+        }
+
+        async function submitPatientRdv(e) {
+            e.preventDefault();
+            const medecin_id = parseInt(document.getElementById('select-medecin').value);
+            const motif = document.getElementById('patient-motif').value;
+
+            if (!medecin_id) {
+                alert("Veuillez choisir un médecin.");
+                return;
+            }
+
+            const res = await fetch('/api/patient/rdv', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ medecin_id, motif })
+            });
+
+            if (res.ok) {
+                alert("Rendez-vous pris avec succès !");
+                document.getElementById('patient-motif').value = '';
+                loadPatientData();
+            }
+        }
+
+        // Chargement des données Médecin
         async function loadMedecinData() {
             const token = localStorage.getItem('token');
             const res = await fetch('/api/medecin/rdv', { headers: { 'Authorization': `Bearer ${token}` } });
@@ -205,11 +286,11 @@
                 card.className = `p-4 border rounded-lg flex justify-between items-center ${isTermine ? 'bg-gray-50 opacity-75' : 'bg-white shadow-sm'}`;
                 card.innerHTML = `
                     <div>
-                        <h4 class="font-bold">${rdv.nom_patient} ${rdv.prenom_patient}</h4>
+                        <h4 class="font-bold">${rdv.prenom_patient} ${rdv.nom_patient}</h4>
                         <p class="text-sm text-gray-600">Motif : ${rdv.motif}</p>
                         <span class="inline-block px-2 py-1 text-xs font-semibold rounded ${isTermine ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">${rdv.statut}</span>
                     </div>
-                    ${!isTermine ? `<button onclick="selectRdv(${rdv.id}, '${rdv.nom_patient} ${rdv.prenom_patient}')" class="px-3 py-1 bg-blue-600 text-white text-sm rounded">Consulter</button>` : '<span class="text-xs text-green-600 font-semibold">Terminé</span>'}
+                    ${!isTermine ? `<button onclick="selectRdv(${rdv.id}, '${rdv.prenom_patient} ${rdv.nom_patient}')" class="px-3 py-1 bg-blue-600 text-white text-sm rounded">Consulter</button>` : '<span class="text-xs text-green-600 font-semibold">Terminé</span>'}
                 `;
                 listContainer.appendChild(card);
             });
@@ -242,57 +323,6 @@
                 document.getElementById('consult-prescription').value = '';
                 document.getElementById('btn-save-consult').disabled = true;
                 loadMedecinData();
-            }
-        }
-
-        // JS PATIENT
-        async function loadPatientData() {
-            // Charger la liste des médecins
-            const resMed = await fetch('/api/patient/medecins');
-            const medecins = await resMed.json();
-            const selectMed = document.getElementById('select-medecin');
-            selectMed.innerHTML = medecins.map(m => `<option value="${m.id}">Dr. ${m.prenom} ${m.nom}</option>`).join('');
-
-            // Charger les rendez-vous du patient
-            const resRdv = await fetch('/api/patient/my-rdv');
-            const rdvs = await resRdv.json();
-            const list = document.getElementById('patient-rdv-list');
-            list.innerHTML = rdvs.length === 0 ? '<p class="text-gray-500 text-sm">Aucun rendez-vous pris.</p>' : '';
-
-            rdvs.forEach(r => {
-                const card = document.createElement('div');
-                card.className = "p-4 border rounded-lg bg-white shadow-sm space-y-2";
-                card.innerHTML = `
-                    <div class="flex justify-between items-center">
-                        <span class="font-bold">Motif : ${r.motif}</span>
-                        <span class="px-2 py-1 text-xs rounded ${r.statut === 'TERMINE' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">${r.statut}</span>
-                    </div>
-                    ${r.diagnostic ? `
-                        <div class="text-sm bg-gray-50 p-2 rounded border mt-2">
-                            <p><strong>Diagnostic :</strong> ${r.diagnostic}</p>
-                            <p><strong>Prescription :</strong> ${r.prescription || 'Aucune'}</p>
-                        </div>
-                    ` : ''}
-                `;
-                list.appendChild(card);
-            });
-        }
-
-        async function submitPatientRdv(e) {
-            e.preventDefault();
-            const medecin_id = parseInt(document.getElementById('select-medecin').value);
-            const motif = document.getElementById('patient-motif').value;
-
-            const res = await fetch('/api/patient/rdv', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ medecin_id, motif })
-            });
-
-            if (res.ok) {
-                alert("Rendez-vous pris avec succès !");
-                document.getElementById('patient-motif').value = '';
-                loadPatientData();
             }
         }
 
