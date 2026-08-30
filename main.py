@@ -45,7 +45,7 @@ def register(user_data: schemas.UserRegister, db: Session = Depends(get_db)):
             nom=user_data.nom,
             prenom=user_data.prenom,
             email=user_data.email,
-            password_hash=hashed_pwd,
+            password=hashed_pwd,  # Mappé sur la colonne 'password'
             role=user_data.role.upper(),
             lieu_exercice=user_data.lieu_exercice,
             carte_digitale_id=nid_genere,
@@ -70,7 +70,7 @@ def register(user_data: schemas.UserRegister, db: Session = Depends(get_db)):
 @app.post("/api/auth/login")
 def login(user_credentials: schemas.UserLogin, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.email == user_credentials.email).first()
-    if not user or not security.verify_password(user_credentials.password, user.password_hash):
+    if not user or not security.verify_password(user_credentials.password, user.password):
         raise HTTPException(status_code=401, detail="Email ou mot de passe incorrect.")
 
     access_token = security.create_access_token(data={"sub": str(user.id), "role": user.role})
@@ -95,7 +95,7 @@ def login(user_credentials: schemas.UserLogin, db: Session = Depends(get_db)):
 def scanner_carte(carte_id: str, db: Session = Depends(get_db)):
     patient = db.query(models.User).filter(models.User.carte_digitale_id == carte_id).first()
     if not patient:
-        raise HTTPException(status_code=444, detail="Carte non trouvée")
+        raise HTTPException(status_code=404, detail="Carte non trouvée")
     
     historique = []
     for c in patient.consultations_recues:
@@ -133,7 +133,7 @@ def prendre_rdv(patient_id: int, medecin_id: int, date_heure: datetime, db: Sess
 
     medecin = db.query(models.User).filter(models.User.id == medecin_id).first()
     if not medecin:
-        raise HTTPException(status_code=444, detail="Médecin introuvable")
+        raise HTTPException(status_code=404, detail="Médecin introuvable")
 
     lieu = medecin.lieu_exercice or "Cabinet principal"
 
