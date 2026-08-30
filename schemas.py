@@ -52,10 +52,9 @@ class ConsultationCreate(BaseModel):
 
 class ConsultationOut(BaseModel):
     id: int
-    date: datetime
-    symptomes: str
+    symptomes: Optional[str] = None
     diagnostic: str
-    prescription: str
+    prescription: Optional[str] = None
     rdv_id: int
 
     class Config:

@@ -45,7 +45,6 @@ class Consultation(Base):
     __tablename__ = "consultations"
 
     id = Column(Integer, primary_key=True, index=True)
-    date = Column(DateTime, default=datetime.utcnow)
     symptomes = Column(Text, nullable=True)
     diagnostic = Column(Text, nullable=False)
     prescription = Column(Text, nullable=True)
