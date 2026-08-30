@@ -1,19 +1,17 @@
-import os
-from typing import List
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse
-from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+import models, schemas, security
+from database import engine, get_db
 from sqlalchemy import text
 
-import models
-import schemas
-import security
-from database import get_db, engine
+# 1. Initialiser l'application FastAPI EN PREMIER
+app = FastAPI(title="Santé App")
 
-# Auto-migration des tables
-# Dans main.py, sous les imports et l'initialisation DB :
+# 2. Monter les fichiers statiques (si applicable)
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# 3. Synchronisation/Migration BDD au démarrage
 try:
     models.Base.metadata.create_all(bind=engine)
     with engine.connect() as conn:
@@ -25,7 +23,13 @@ try:
 except Exception as e:
     print(f"Sync DB: {e}")
 
-# Mettre à jour l'inscription
+# 4. Route pour la page d'accueil
+@app.get("/")
+def read_index():
+    from fastapi.responses import FileResponse
+    return FileResponse("static/index.html")
+
+# 5. Routes API
 @app.post("/api/auth/register", response_model=schemas.UserOut)
 def register_user(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
     db_user = db.query(models.User).filter(models.User.email == user_in.email).first()
