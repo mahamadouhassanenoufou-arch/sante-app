@@ -9,11 +9,21 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 
 import models, schemas, utils
 from database import engine, get_db
 
-# Création/Synchronisation des tables
+# --- RESET AUTOMATIQUE DE LA TABLE OBSOLÈTE ET RECRÉATION ---
+with engine.connect() as conn:
+    try:
+        # Supprime la table obsolète si la colonne 'password' manque
+        conn.execute(text("DROP TABLE IF EXISTS users CASCADE;"))
+        conn.commit()
+    except Exception as e:
+        print(f"Info migration: {e}")
+
+# Re-création des tables à jour dans PostgreSQL
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="SantéApp API")
@@ -48,6 +58,7 @@ def send_email_safe(to_email: str, subject: str, content: str):
             server.send_message(msg)
     except Exception as e:
         print(f"SMTP non bloquant: {e}")
+
 
 # --- ROUTES AUTHENTIFICATION ---
 
@@ -136,7 +147,7 @@ def reset_password(payload: schemas.ResetPasswordConfirm, db: Session = Depends(
     return {"message": "Mot de passe réinitialisé avec succès."}
 
 
-# --- ROUTES CRÉNEAUX ET RDV ---
+# --- ROUTES CRÉNEAUX ET RENDEZ-VOUS ---
 
 @app.post("/api/creneaux", response_model=schemas.CreneauResponse, status_code=status.HTTP_201_CREATED)
 def create_creneau(creneau: schemas.CreneauCreate, db: Session = Depends(get_db)):
