@@ -173,44 +173,48 @@
         }
 
         async function loadMedecinData() {
-            try {
-                const res = await fetch('/api/medecin/rdv');
-                if (!res.ok) return;
-                const rdvs = await res.json();
-                const container = document.getElementById('list-rdv');
-                container.innerHTML = '';
+    const token = localStorage.getItem('token');
+    try {
+        const res = await fetch('/api/medecin/rdv', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) return;
 
-                if (rdvs.length === 0) {
-                    container.innerHTML = '<p class="text-slate-400 text-sm">Aucun rendez-vous planifié.</p>';
-                    return;
-                }
+        const rdvs = await res.json();
+        const listContainer = document.getElementById('rdv-list');
+        listContainer.innerHTML = '';
 
-                rdvs.forEach(rdv => {
-                    const isTermine = rdv.statut === 'TERMINE';
-                    const card = document.createElement('div');
-                    card.className = `p-3 rounded-lg border cursor-pointer transition ${isTermine ? 'bg-slate-100 border-slate-200 opacity-60' : 'bg-white border-blue-200 hover:border-blue-500 shadow-sm'}`;
-                    card.onclick = () => !isTermine && selectRdv(rdv);
-                    
-                    card.innerHTML = `
-                        <div class="flex justify-between items-start">
-                            <span class="font-bold text-slate-800 text-sm">${rdv.prenom_patient} ${rdv.nom_patient}</span>
-                            <span class="text-xs px-2 py-0.5 rounded ${isTermine ? 'bg-gray-200 text-gray-700' : 'bg-blue-100 text-blue-700'}">${rdv.statut}</span>
-                        </div>
-                        <p class="text-xs text-slate-500 mt-1">Motif: ${rdv.motif}</p>
-                    `;
-                    container.appendChild(card);
-                });
-            } catch (e) {
-                console.error("Erreur chargement RDV:", e);
-            }
-        }
+        rdvs.forEach(rdv => {
+            const isTermine = rdv.statut === 'TERMINE';
+            const badgeClass = isTermine ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800';
+            
+            const card = document.createElement('div');
+            card.className = `p-4 border rounded-lg flex justify-between items-center ${isTermine ? 'bg-gray-50 opacity-75' : 'bg-white shadow-sm'}`;
+            card.innerHTML = `
+                <div>
+                    <h4 class="font-bold text-gray-800">${rdv.nom_patient} ${rdv.prenom_patient}</h4>
+                    <p class="text-sm text-gray-600">Motif : ${rdv.motif}</p>
+                    <span class="inline-block mt-1 px-2 py-1 text-xs font-semibold rounded ${badgeClass}">${rdv.statut}</span>
+                </div>
+                ${!isTermine ? `
+                    <button onclick="selectRdv(${rdv.id}, '${rdv.nom_patient} ${rdv.prenom_patient}')" 
+                            class="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700">
+                        Consulter
+                    </button>
+                ` : '<span class="text-xs text-green-600 font-semibold">Consulté</span>'}
+            `;
+            listContainer.appendChild(card);
+        });
+    } catch (err) {
+        console.error("Erreur chargement RDV:", err);
+    }
+}
 
-        function selectRdv(rdv) {
-            document.getElementById('consult-rdv-id').value = rdv.id;
-            document.getElementById('consult-patient-name').value = `${rdv.prenom_patient} ${rdv.nom_patient}`;
-            document.getElementById('btn-save-consult').disabled = false;
-        }
-
+function selectRdv(id, patientName) {
+    document.getElementById('consult-rdv-id').value = id;
+    document.getElementById('consult-patient-name').value = patientName;
+    document.getElementById('btn-save-consult').disabled = false;
+}
        async function submitConsultation(e) {
     e.preventDefault();
     const rdv_id = parseInt(document.getElementById('consult-rdv-id').value);
