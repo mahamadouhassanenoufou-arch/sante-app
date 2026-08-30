@@ -161,3 +161,7 @@ def create_rendez_vous(rdv: schemas.RendezVousCreate, db: Session = Depends(get_
     db.commit()
     db.refresh(new_rdv)
     return new_rdv
+# Route de secours si le JS frontend appelle /register sans le prefixe /api
+@app.post("/register", response_model=schemas.UserResponse, status_code=status.HTTP_201_CREATED)
+def register_alias(user: schemas.UserCreate, db: Session = Depends(get_db)):
+    return register(user, db)
