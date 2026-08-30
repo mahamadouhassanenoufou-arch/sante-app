@@ -3,165 +3,146 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SantéApp - Gestion de Rendez-vous</title>
+    <title>SantéApp - Gestion Médicale</title>
+    
+    <!-- PWA Configuration -->
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#4f46e5">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="SantéApp">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2966/2966327.png">
+
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-800 font-sans">
 
-    <!-- NAVBAR -->
-    <header class="bg-indigo-900 text-white shadow-md">
-        <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-            <div class="flex items-center space-x-3">
-                <h1 class="text-2xl font-bold tracking-tight">SantéApp</h1>
-                <span class="bg-indigo-700 text-indigo-200 text-xs px-2.5 py-1 rounded-full font-medium">Espace Sécurisé</span>
-            </div>
-            <div id="userInfoHeader" class="hidden flex items-center space-x-4">
-                <div class="text-right">
-                    <p id="userFullName" class="font-semibold text-sm text-white"></p>
-                    <p id="userRoleBadge" class="text-xs text-indigo-200"></p>
-                </div>
-                <button onclick="logout()" class="bg-red-600 hover:bg-red-700 text-white text-sm px-4 py-2 rounded-lg font-medium transition">
-                    Déconnexion
-                </button>
-            </div>
+    <!-- Barre de Navigation -->
+    <nav class="bg-indigo-900 text-white px-6 py-4 flex justify-between items-center shadow-md">
+        <div class="flex items-center space-x-3">
+            <h1 class="text-2xl font-bold tracking-wide">SantéApp</h1>
+            <span class="bg-indigo-700 text-xs text-indigo-200 px-2.5 py-1 rounded-full font-medium">Espace Sécurisé</span>
         </div>
-    </header>
+        <div id="user-info" class="hidden flex items-center space-x-4">
+            <div class="text-right">
+                <span id="nav-user-name" class="block font-semibold text-sm"></span>
+                <span id="nav-user-role" class="block text-xs text-indigo-200 capitalize"></span>
+            </div>
+            <button onclick="logout()" class="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-2 rounded-lg transition font-medium">
+                Déconnexion
+            </button>
+        </div>
+    </nav>
 
-    <!-- CONTAINER PRINCIPAL -->
-    <main class="max-w-7xl mx-auto px-6 py-8">
+    <div class="max-w-6xl mx-auto p-6">
 
-        <!-- AUTHENTIFICATION (LOGIN / REGISTER) -->
-        <section id="authSection" class="max-w-md mx-auto bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
-            <h2 id="authTitle" class="text-2xl font-bold text-slate-900 text-center mb-6">Connexion</h2>
-            
-            <form id="authForm" onsubmit="handleAuth(event)">
-                <div id="registerFields" class="hidden space-y-4 mb-4">
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Nom</label>
-                        <input type="text" id="regNom" class="w-full border border-slate-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Prénom</label>
-                        <input type="text" id="regPrenom" class="w-full border border-slate-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Rôle</label>
-                        <select id="regRole" onchange="toggleSpecialite()" class="w-full border border-slate-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-                            <option value="PATIENT">Patient</option>
-                            <option value="MEDECIN">Médecin / Praticien</option>
-                        </select>
-                    </div>
-                    <div id="specialiteGroup" class="hidden">
-                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Spécialité</label>
-                        <input type="text" id="regSpecialite" placeholder="Ex: Généraliste, Cardiologue" class="w-full border border-slate-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-                    </div>
+        <!-- SECTION AUTHENTIFICATION (Login / Register) -->
+        <div id="auth-section" class="max-w-md mx-auto bg-white p-8 rounded-2xl shadow-xl mt-10">
+            <div class="flex justify-center space-x-4 mb-6 border-b pb-4">
+                <button id="tab-login" onclick="switchAuthTab('login')" class="text-indigo-600 font-bold border-b-2 border-indigo-600 pb-2 px-2">Connexion</button>
+                <button id="tab-register" onclick="switchAuthTab('register')" class="text-gray-500 font-bold border-b-2 border-transparent pb-2 px-2">Inscription</button>
+            </div>
+
+            <!-- Formulaire de Connexion -->
+            <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Email</label>
+                    <input type="email" id="login-email" required class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
                 </div>
-
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Adresse Email</label>
-                        <input type="email" id="authEmail" required class="w-full border border-slate-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Mot de passe</label>
-                        <input type="password" id="authPassword" required class="w-full border border-slate-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-                    </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Mot de passe</label>
+                    <input type="password" id="login-password" required class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
                 </div>
-
-                <button type="submit" id="authSubmitBtn" class="w-full mt-6 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-lg shadow transition">
-                    Se connecter
-                </button>
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-lg transition">Se connecter</button>
             </form>
 
-            <div class="mt-4 text-center">
-                <button onclick="toggleAuthMode()" id="toggleAuthBtn" class="text-sm text-indigo-600 hover:underline">
-                    Pas encore de compte ? S'inscrire
-                </button>
-            </div>
-        </section>
+            <!-- Formulaire d'Inscription -->
+            <form id="register-form" onsubmit="handleRegister(event)" class="space-y-4 hidden">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Nom</label>
+                    <input type="text" id="reg-nom" required class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Prénom</label>
+                    <input type="text" id="reg-prenom" required class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Email</label>
+                    <input type="email" id="reg-email" required class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Mot de passe</label>
+                    <input type="password" id="reg-password" required class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Rôle</label>
+                    <select id="reg-role" onchange="toggleSpecialite()" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+                        <option value="PATIENT">Patient</option>
+                        <option value="MEDECIN">Médecin</option>
+                    </select>
+                </div>
+                <div id="specialite-container" class="hidden">
+                    <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Spécialité</label>
+                    <input type="text" id="reg-specialite" placeholder="Ex: Généraliste, Cardiologue" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-lg transition">Créer un compte</button>
+            </form>
+        </div>
 
         <!-- DASHBOARD PATIENT -->
-        <section id="patientDashboard" class="hidden grid grid-cols-1 md:grid-cols-2 gap-8">
-            <!-- Formulaire de Prise de RDV -->
-            <div class="bg-white p-6 rounded-xl shadow-md border border-slate-200">
-                <h3 class="text-lg font-bold text-slate-900 mb-4 pb-2 border-b">Prendre RDV auprès d'un Spécialiste</h3>
-                <form onsubmit="submitPatientRdv(event)" class="space-y-4">
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Choisir un Médecin</label>
-                        <select id="medecinSelect" required class="w-full border border-slate-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-                            <option value="">Chargement des médecins...</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Motif de consultation</label>
-                        <input type="text" id="motifInput" placeholder="Ex: Fièvre, rhume, consultation générale..." required class="w-full border border-slate-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-                    </div>
-                    <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-lg transition">
-                        Confirmer le Rendez-vous
-                    </button>
-                </form>
-            </div>
+        <div id="patient-dashboard" class="hidden space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Prendre RDV -->
+                <div class="bg-white p-6 rounded-2xl shadow-md border border-slate-200">
+                    <h2 class="text-xl font-bold mb-4 text-indigo-900">Prendre RDV auprès d'un Spécialiste</h2>
+                    <form onsubmit="handleCreateRDV(event)" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Choisir un médecin</label>
+                            <select id="select-medecin" required class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white">
+                                <option value="">Chargement de la liste...</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 uppercase mb-1">Motif de consultation</label>
+                            <textarea id="rdv-motif" required rows="3" placeholder="Symptômes, motifs..." class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"></textarea>
+                        </div>
+                        <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-lg transition">
+                            Confirmer le Rendez-vous
+                        </button>
+                    </form>
+                </div>
 
-            <!-- Historique / Mes RDV -->
-            <div class="bg-white p-6 rounded-xl shadow-md border border-slate-200">
-                <h3 class="text-lg font-bold text-slate-900 mb-4 pb-2 border-b">Mon Historique Médical</h3>
-                <div id="patientRdvList" class="space-y-4">
-                    <p class="text-slate-500 text-sm">Chargement de votre historique...</p>
+                <!-- Historique Médical Patient -->
+                <div class="bg-white p-6 rounded-2xl shadow-md border border-slate-200">
+                    <h2 class="text-xl font-bold mb-4 text-indigo-900">Mon Historique Médical</h2>
+                    <div id="patient-rdv-list" class="space-y-4 max-h-[500px] overflow-y-auto">
+                        <p class="text-gray-500 text-sm">Aucun rendez-vous dans votre dossier.</p>
+                    </div>
                 </div>
             </div>
-        </section>
+        </div>
 
         <!-- DASHBOARD MEDECIN -->
-        <section id="medecinDashboard" class="hidden grid grid-cols-1 md:grid-cols-2 gap-8">
-            <!-- Liste des RDV attribués -->
-            <div class="bg-white p-6 rounded-xl shadow-md border border-slate-200">
-                <div class="flex justify-between items-center mb-4 pb-2 border-b">
-                    <h3 class="text-lg font-bold text-slate-900">Mes Rendez-vous attribués</h3>
-                    <button onclick="loadMedecinRdvs()" class="text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1 rounded transition">
-                        ↻ Actualiser
-                    </button>
-                </div>
-                <div id="medecinRdvList" class="space-y-4">
-                    <p class="text-slate-500 text-sm">Chargement des rendez-vous...</p>
+        <div id="medecin-dashboard" class="hidden space-y-6">
+            <div class="bg-white p-6 rounded-2xl shadow-md border border-slate-200">
+                <h2 class="text-xl font-bold mb-4 text-indigo-900">Rendez-vous et Consultations à Traiter</h2>
+                <div id="medecin-rdv-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <p class="text-gray-500 text-sm">Aucun rendez-vous en attente.</p>
                 </div>
             </div>
+        </div>
 
-            <!-- Saisie du Dossier de Consultation -->
-            <div class="bg-white p-6 rounded-xl shadow-md border border-slate-200">
-                <h3 class="text-lg font-bold text-slate-900 mb-4 pb-2 border-b">Dossier de Consultation</h3>
-                <form id="consultationForm" onsubmit="submitConsultation(event)" class="space-y-4">
-                    <input type="hidden" id="selectedRdvId">
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Patient</label>
-                        <input type="text" id="selectedPatientName" disabled readonly placeholder="Sélectionnez un RDV à gauche" class="w-full bg-slate-100 border border-slate-300 rounded-lg p-3 text-sm text-slate-500">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Symptômes constatés</label>
-                        <textarea id="symptomesInput" required rows="3" class="w-full border border-slate-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"></textarea>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Diagnostic Médical</label>
-                        <textarea id="diagnosticInput" required rows="3" class="w-full border border-slate-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"></textarea>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Prescription / Ordonnance</label>
-                        <textarea id="prescriptionInput" rows="3" class="w-full border border-slate-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"></textarea>
-                    </div>
-                    <button type="submit" id="saveConsultBtn" disabled class="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-semibold py-3 rounded-lg transition">
-                        Valider et enregistrer la consultation
-                    </button>
-                </form>
-            </div>
-        </section>
+    </div>
 
-    </main>
-
+    <!-- SCRIPT APPLICATION -->
     <script>
-        let isRegisterMode = false;
+        const API_URL = "";
 
-        document.addEventListener("DOMContentLoaded", () => {
-            checkAuth();
-        });
+        function getAuthHeader() {
+            const token = localStorage.getItem("token");
+            return token ? { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" } : { "Content-Type": "application/json" };
+        }
 
         function checkAuth() {
             const token = localStorage.getItem("token");
@@ -170,84 +151,99 @@
             const prenom = localStorage.getItem("prenom");
 
             if (token && role) {
-                document.getElementById("authSection").classList.add("hidden");
-                document.getElementById("userInfoHeader").classList.remove("hidden");
-                document.getElementById("userFullName").textContent = `${prenom} ${nom}`;
-                document.getElementById("userRoleBadge").textContent = role === "MEDECIN" ? "Médecin / Praticien" : "Patient";
+                document.getElementById("auth-section").classList.add("hidden");
+                document.getElementById("user-info").classList.remove("hidden");
+                document.getElementById("nav-user-name").innerText = `${prenom} ${nom}`;
+                document.getElementById("nav-user-role").innerText = role;
 
-                if (role === "PATIENT") {
-                    document.getElementById("patientDashboard").classList.remove("hidden");
-                    document.getElementById("medecinDashboard").classList.add("hidden");
-                    loadMedecinsList();
-                    loadPatientRdvs();
-                } else if (role === "MEDECIN") {
-                    document.getElementById("medecinDashboard").classList.remove("hidden");
-                    document.getElementById("patientDashboard").classList.add("hidden");
-                    loadMedecinRdvs();
+                if (role.toUpperCase() === "PATIENT") {
+                    document.getElementById("patient-dashboard").classList.remove("hidden");
+                    document.getElementById("medecin-dashboard").classList.add("hidden");
+                    loadMedecins();
+                    loadPatientRDVs();
+                } else if (role.toUpperCase() === "MEDECIN") {
+                    document.getElementById("medecin-dashboard").classList.remove("hidden");
+                    document.getElementById("patient-dashboard").classList.add("hidden");
+                    loadMedecinRDVs();
                 }
             } else {
-                document.getElementById("authSection").classList.remove("hidden");
-                document.getElementById("userInfoHeader").classList.add("hidden");
-                document.getElementById("patientDashboard").classList.add("hidden");
-                document.getElementById("medecinDashboard").classList.add("hidden");
+                document.getElementById("auth-section").classList.remove("hidden");
+                document.getElementById("user-info").classList.add("hidden");
+                document.getElementById("patient-dashboard").classList.add("hidden");
+                document.getElementById("medecin-dashboard").classList.add("hidden");
             }
         }
 
-        function toggleAuthMode() {
-            isRegisterMode = !isRegisterMode;
-            document.getElementById("authTitle").textContent = isRegisterMode ? "Inscription" : "Connexion";
-            document.getElementById("authSubmitBtn").textContent = isRegisterMode ? "S'inscrire" : "Se connecter";
-            document.getElementById("toggleAuthBtn").textContent = isRegisterMode ? "Déjà un compte ? Se connecter" : "Pas encore de compte ? S'inscrire";
-            document.getElementById("registerFields").classList.toggle("hidden", !isRegisterMode);
+        function switchAuthTab(tab) {
+            if (tab === 'login') {
+                document.getElementById("login-form").classList.remove("hidden");
+                document.getElementById("register-form").classList.add("hidden");
+                document.getElementById("tab-login").className = "text-indigo-600 font-bold border-b-2 border-indigo-600 pb-2 px-2";
+                document.getElementById("tab-register").className = "text-gray-500 font-bold border-b-2 border-transparent pb-2 px-2";
+            } else {
+                document.getElementById("login-form").classList.add("hidden");
+                document.getElementById("register-form").classList.remove("hidden");
+                document.getElementById("tab-register").className = "text-emerald-600 font-bold border-b-2 border-emerald-600 pb-2 px-2";
+                document.getElementById("tab-login").className = "text-gray-500 font-bold border-b-2 border-transparent pb-2 px-2";
+            }
         }
 
         function toggleSpecialite() {
-            const role = document.getElementById("regRole").value;
-            document.getElementById("specialiteGroup").classList.toggle("hidden", role !== "MEDECIN");
+            const role = document.getElementById("reg-role").value;
+            const container = document.getElementById("specialite-container");
+            if (role === "MEDECIN") {
+                container.classList.remove("hidden");
+            } else {
+                container.classList.add("hidden");
+            }
         }
 
-        async function handleAuth(event) {
-            event.preventDefault();
-            const email = document.getElementById("authEmail").value;
-            const password = document.getElementById("authPassword").value;
+        async function handleLogin(e) {
+            e.preventDefault();
+            const email = document.getElementById("login-email").value;
+            const password = document.getElementById("login-password").value;
 
-            if (isRegisterMode) {
-                const nom = document.getElementById("regNom").value;
-                const prenom = document.getElementById("regPrenom").value;
-                const role = document.getElementById("regRole").value;
-                const specialite = document.getElementById("regSpecialite").value;
-
-                const res = await fetch("/api/auth/register", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ nom, prenom, email, password, role, specialite })
-                });
-
-                if (res.ok) {
-                    alert("Compte créé avec succès ! Connectez-vous.");
-                    toggleAuthMode();
-                } else {
-                    const err = await res.json();
-                    alert("Erreur : " + (err.detail || "Inscription échouée"));
-                }
-            } else {
-                const res = await fetch("/api/auth/login", {
+            try {
+                const res = await fetch(`${API_URL}/api/auth/login`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ email, password })
                 });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || "Échec de connexion");
 
-                if (res.ok) {
-                    const data = await res.json();
-                    localStorage.setItem("token", data.access_token);
-                    localStorage.setItem("role", data.role);
-                    localStorage.setItem("nom", data.nom);
-                    localStorage.setItem("prenom", data.prenom);
-                    checkAuth();
-                } else {
-                    const err = await res.json();
-                    alert("Erreur : " + (err.detail || "Identifiants invalides"));
-                }
+                localStorage.setItem("token", data.access_token);
+                localStorage.setItem("role", data.role);
+                localStorage.setItem("nom", data.nom);
+                localStorage.setItem("prenom", data.prenom);
+                checkAuth();
+            } catch (err) {
+                alert(err.message);
+            }
+        }
+
+        async function handleRegister(e) {
+            e.preventDefault();
+            const nom = document.getElementById("reg-nom").value;
+            const prenom = document.getElementById("reg-prenom").value;
+            const email = document.getElementById("reg-email").value;
+            const password = document.getElementById("reg-password").value;
+            const role = document.getElementById("reg-role").value;
+            const specialite = document.getElementById("reg-specialite").value;
+
+            try {
+                const res = await fetch(`${API_URL}/api/auth/register`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ nom, prenom, email, password, role, specialite })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || "Échec de l'inscription");
+
+                alert("Compte créé avec succès ! Veuillez vous connecter.");
+                switchAuthTab('login');
+            } catch (err) {
+                alert(err.message);
             }
         }
 
@@ -256,165 +252,145 @@
             checkAuth();
         }
 
-        // --- PATIENT ---
-        async function loadMedecinsList() {
-            const res = await fetch("/api/patient/medecins");
-            if (res.ok) {
+        async function loadMedecins() {
+            try {
+                const res = await fetch(`${API_URL}/api/patient/medecins`, { headers: getAuthHeader() });
                 const medecins = await res.json();
-                const select = document.getElementById("medecinSelect");
-                select.innerHTML = medecins.map(m => 
-                    `<option value="${m.id}">Dr. ${m.prenom} ${m.nom} (${m.specialite})</option>`
-                ).join('');
+                const select = document.getElementById("select-medecin");
+                select.innerHTML = medecins.map(m => `<option value="${m.id}">Dr. ${m.prenom} ${m.nom} (${m.specialite})</option>`).join('');
+            } catch (err) {
+                console.error("Erreur chargement médecins:", err);
             }
         }
 
-        async function submitPatientRdv(event) {
-            event.preventDefault();
-            const medecinId = document.getElementById("medecinSelect").value;
-            const motif = document.getElementById("motifInput").value.trim();
-            const token = localStorage.getItem("token");
+        async function handleCreateRDV(e) {
+            e.preventDefault();
+            const medecin_id = document.getElementById("select-medecin").value;
+            const motif = document.getElementById("rdv-motif").value;
 
-            if (!medecinId || !motif) {
-                alert("Veuillez remplir tous les champs.");
-                return;
-            }
+            try {
+                const res = await fetch(`${API_URL}/api/patient/rdv`, {
+                    method: "POST",
+                    headers: getAuthHeader(),
+                    body: JSON.stringify({ medecin_id, motif })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || "Erreur réservation");
 
-            const res = await fetch("/api/patient/rdv", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
-                },
-                body: JSON.stringify({ medecin_id: parseInt(medecinId), motif: motif })
-            });
-
-            if (res.ok) {
-                alert("Rendez-vous enregistré avec succès !");
-                document.getElementById("motifInput").value = "";
-                loadPatientRdvs();
-            } else {
-                const err = await res.json();
-                alert("Erreur : " + (err.detail || "Erreur de réservation"));
+                alert("Rendez-vous réservé avec succès !");
+                document.getElementById("rdv-motif").value = "";
+                loadPatientRDVs();
+            } catch (err) {
+                alert(err.message);
             }
         }
 
-        async function loadPatientRdvs() {
-            const token = localStorage.getItem("token");
-            const res = await fetch("/api/patient/my-rdv", {
-                headers: { "Authorization": `Bearer ${token}` }
-            });
-
-            if (res.ok) {
+        async function loadPatientRDVs() {
+            try {
+                const res = await fetch(`${API_URL}/api/patient/my-rdv`, { headers: getAuthHeader() });
                 const rdvs = await res.json();
-                const container = document.getElementById("patientRdvList");
+                const container = document.getElementById("patient-rdv-list");
 
-                if (rdvs.length === 0) {
-                    container.innerHTML = `<p class="text-slate-500 text-sm">Aucun rendez-vous dans votre dossier.</p>`;
+                if (!rdvs || rdvs.length === 0) {
+                    container.innerHTML = `<p class="text-gray-500 text-sm">Aucun rendez-vous dans votre dossier.</p>`;
                     return;
                 }
 
                 container.innerHTML = rdvs.map(r => `
-                    <div class="p-4 border border-slate-200 rounded-lg bg-slate-50">
+                    <div class="p-4 border rounded-xl bg-slate-50 space-y-2">
                         <div class="flex justify-between items-start">
                             <div>
                                 <h4 class="font-bold text-slate-800">${r.medecin_nom}</h4>
-                                <p class="text-xs text-indigo-600 font-semibold">${r.specialite}</p>
+                                <span class="text-xs text-indigo-600 font-medium">${r.specialite}</span>
                             </div>
-                            <span class="text-xs px-2 py-1 rounded font-bold ${r.statut === 'TERMINE' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">
-                                ${r.statut}
-                            </span>
+                            <span class="text-xs font-bold px-2 py-1 rounded ${r.statut === 'TERMINE' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">${r.statut}</span>
                         </div>
-                        <p class="text-sm mt-2"><strong class="text-slate-600">Motif:</strong> ${r.motif}</p>
+                        <p class="text-sm text-slate-600"><strong>Motif:</strong> ${r.motif}</p>
                         ${r.diagnostic ? `
-                            <div class="mt-3 pt-3 border-t border-slate-200 text-xs text-slate-700 space-y-1">
-                                <p><strong>Symptômes:</strong> ${r.symptomes}</p>
+                            <div class="pt-2 border-t text-xs space-y-1">
+                                <p><strong>Symptômes:</strong> ${r.symptomes || '-'}</p>
                                 <p><strong>Diagnostic:</strong> ${r.diagnostic}</p>
-                                <p><strong>Ordonnance:</strong> ${r.prescription || 'Aucune'}</p>
+                                <p><strong>Ordonnance:</strong> <span class="text-indigo-700 font-semibold">${r.prescription || '-'}</span></p>
                             </div>
                         ` : ''}
                     </div>
                 `).join('');
+            } catch (err) {
+                console.error("Erreur chargement RDV patient:", err);
             }
         }
 
-        // --- MEDECIN ---
-        async function loadMedecinRdvs() {
-            const token = localStorage.getItem("token");
-            const res = await fetch("/api/medecin/rdv", {
-                headers: { "Authorization": `Bearer ${token}` }
-            });
-
-            if (res.ok) {
+        async function loadMedecinRDVs() {
+            try {
+                const res = await fetch(`${API_URL}/api/medecin/rdv`, { headers: getAuthHeader() });
                 const rdvs = await res.json();
-                const container = document.getElementById("medecinRdvList");
+                const container = document.getElementById("medecin-rdv-list");
 
-                if (rdvs.length === 0) {
-                    container.innerHTML = `<p class="text-slate-500 text-sm">Aucun rendez-vous attribué.</p>`;
+                if (!rdvs || rdvs.length === 0) {
+                    container.innerHTML = `<p class="text-gray-500 text-sm">Aucun rendez-vous en attente.</p>`;
                     return;
                 }
 
                 container.innerHTML = rdvs.map(r => `
-                    <div class="p-4 border border-slate-200 rounded-lg bg-slate-50 flex justify-between items-center">
-                        <div>
+                    <div class="p-4 border rounded-xl bg-slate-50 space-y-3">
+                        <div class="flex justify-between items-center">
                             <h4 class="font-bold text-slate-800">${r.prenom_patient} ${r.nom_patient}</h4>
-                            <p class="text-xs text-slate-600">Motif : ${r.motif}</p>
-                            <span class="inline-block mt-1 text-xs px-2 py-0.5 rounded font-semibold ${r.statut === 'TERMINE' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">
-                                ${r.statut}
-                            </span>
+                            <span class="text-xs font-bold px-2 py-1 rounded ${r.statut === 'TERMINE' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">${r.statut}</span>
                         </div>
+                        <p class="text-sm text-slate-600"><strong>Motif:</strong> ${r.motif}</p>
                         ${r.statut !== 'TERMINE' ? `
-                            <button onclick="selectRdvForConsultation(${r.id}, '${r.prenom_patient} ${r.nom_patient}')" class="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded transition">
-                                Consulter
-                            </button>
-                        ` : ''}
+                            <form onsubmit="handleConsultation(event, ${r.id})" class="space-y-2 pt-2 border-t">
+                                <input type="text" id="symp-${r.id}" placeholder="Symptômes constatés" required class="w-full text-xs p-2 border rounded">
+                                <input type="text" id="diag-${r.id}" placeholder="Diagnostic" required class="w-full text-xs p-2 border rounded">
+                                <textarea id="presc-${r.id}" placeholder="Prescription / Ordonnance" rows="2" class="w-full text-xs p-2 border rounded"></textarea>
+                                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2 rounded transition">
+                                    Valider la Consultation
+                                </button>
+                            </form>
+                        ` : '<p class="text-xs text-green-600 font-semibold pt-2 border-t">Consultation terminée</p>'}
                     </div>
                 `).join('');
+            } catch (err) {
+                console.error("Erreur chargement RDV médecin:", err);
             }
         }
 
-        function selectRdvForConsultation(rdvId, patientName) {
-            document.getElementById("selectedRdvId").value = rdvId;
-            document.getElementById("selectedPatientName").value = patientName;
-            document.getElementById("saveConsultBtn").disabled = false;
-        }
+        async function handleConsultation(e, rdvId) {
+            e.preventDefault();
+            const symptomes = document.getElementById(`symp-${rdvId}`).value;
+            const diagnostic = document.getElementById(`diag-${rdvId}`).value;
+            const prescription = document.getElementById(`presc-${rdvId}`).value;
 
-        async function submitConsultation(event) {
-            event.preventDefault();
-            const rdvId = document.getElementById("selectedRdvId").value;
-            const symptomes = document.getElementById("symptomesInput").value.trim();
-            const diagnostic = document.getElementById("diagnosticInput").value.trim();
-            const prescription = document.getElementById("prescriptionInput").value.trim();
-            const token = localStorage.getItem("token");
+            try {
+                const res = await fetch(`${API_URL}/api/medecin/consultation`, {
+                    method: "POST",
+                    headers: getAuthHeader(),
+                    body: JSON.stringify({ rdv_id: rdvId, symptomes, diagnostic, prescription })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || "Erreur enregistrement consultation");
 
-            if (!rdvId) {
-                alert("Veuillez sélectionner un rendez-vous dans la liste de gauche.");
-                return;
-            }
-
-            const res = await fetch("/api/medecin/consultation", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    rdv_id: parseInt(rdvId),
-                    symptomes,
-                    diagnostic,
-                    prescription
-                })
-            });
-
-            if (res.ok) {
                 alert("Consultation enregistrée avec succès !");
-                document.getElementById("consultationForm").reset();
-                document.getElementById("saveConsultBtn").disabled = true;
-                loadMedecinRdvs();
-            } else {
-                const err = await res.json();
-                alert("Erreur : " + (err.detail || "Enregistrement impossible"));
+                loadMedecinRDVs();
+            } catch (err) {
+                alert(err.message);
             }
+        }
+
+        // Initialisation de l'état d'authentification au chargement
+        window.onload = checkAuth;
+    </script>
+
+    <!-- Enregistrement du Service Worker pour PWA -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/static/sw.js')
+                    .then(reg => console.log('Service Worker PWA enregistré avec succès !', reg.scope))
+                    .catch(err => console.error('Échec enregistrement Service Worker PWA:', err));
+            });
         }
     </script>
+
 </body>
 </html>

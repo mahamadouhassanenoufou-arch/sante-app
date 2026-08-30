@@ -1,18 +1,45 @@
-const CACHE_NAME = "sante-app-v1";
-const urlsToCache = ["/app", "/static/index.html", "/static/app.js"];
+const CACHE_NAME = "santeapp-v1";
+const ASSETS_TO_CACHE = [
+  "/",
+  "/static/index.html",
+  "https://cdn.tailwindcss.com"
+];
 
+// Installation du Service Worker
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(urlsToCache);
+      return cache.addAll(ASSETS_TO_CACHE);
     })
   );
+  self.skipWaiting();
 });
 
-self.addEventListener("fetch", (event) => {
-  event.respondWith(
-    caches.match(event.request).then((response) => {
-      return response || fetch(event.request);
+// Activation et nettoyage des anciens caches
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) => {
+      return Promise.all(
+        keys.map((key) => {
+          if (key !== CACHE_NAME) return caches.delete(key);
+        })
+      );
     })
+  );
+  self.clients.claim();
+});
+
+// Stratégie Network-First avec Fallback Cache
+self.addEventListener("fetch", (event) => {
+  if (event.request.method !== "GET") return;
+
+  event.respondWith(
+    fetch(event.request)
+      .then((response) => {
+        const resClone = response.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, resClone));
+        return response;
+      })
+      .catch(() => caches.match(event.request))
   );
 });
