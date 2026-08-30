@@ -32,6 +32,10 @@ class Token(BaseModel):
     prenom: Optional[str] = None
 
 # --- Nouveaux schémas Médecin ---
+class RdvCreate(BaseModel):
+    motif: str
+    medecin_id: int
+
 class RdvOut(BaseModel):
     id: int
     date_heure: datetime
