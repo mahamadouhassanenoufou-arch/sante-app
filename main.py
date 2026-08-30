@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import List, Optional
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.staticfiles import StaticFiles
@@ -90,7 +91,6 @@ def create_rdv(
     if current_user.role != "PATIENT":
         raise HTTPException(status_code=403, detail="Accès réservé aux patients.")
     
-    # Vérification de l'existence du médecin
     medecin = db.query(models.User).filter(
         models.User.id == int(data.medecin_id), 
         models.User.role == "MEDECIN"
@@ -99,7 +99,6 @@ def create_rdv(
     if not medecin:
         raise HTTPException(status_code=404, detail="Le médecin sélectionné n'existe pas.")
 
-    # Détermination sécurisée du statut (String brut)
     statut_val = "EN_ATTENTE"
     if hasattr(models, "StatutRDV") and hasattr(models.StatutRDV, "EN_ATTENTE"):
         statut_val = models.StatutRDV.EN_ATTENTE.value if hasattr(models.StatutRDV.EN_ATTENTE, 'value') else "EN_ATTENTE"
@@ -108,7 +107,8 @@ def create_rdv(
         patient_id=int(current_user.id),
         medecin_id=int(data.medecin_id),
         motif=data.motif,
-        statut=statut_val
+        statut=statut_val,
+        date_heure=datetime.utcnow()  # Inscription explicite pour respecter la contrainte DB
     )
     
     try:
