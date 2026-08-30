@@ -11,7 +11,7 @@ from database import engine, get_db
 # Création automatique des tables
 models.Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="SantéApp - Carte Digitale PWA")
+app = FastAPI (title="SantéApp - Carte Digitale PWA")
 
 # Fichiers statiques (PWA)
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -24,25 +24,30 @@ def read_root():
 # AUTHENTIFICATION & CARTE DIGITALE
 # ==========================================
 
+import uuid
+
 @app.post("/api/auth/register")
 def register(user_data: schemas.UserRegister, db: Session = Depends(get_db)):
-    # Vérification email existant
-    db_user = db.query(models.User).filter(models.User.email == user_data.email).first()
-    if db_user:
-        raise HTTPException(status_code=400, detail="Email déjà utilisé")
+    # Vérification si l'email existe déjà
+    existing_user = db.query(models.User).filter(models.User.email == user_data.email).first()
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Cet email est déjà utilisé.")
 
-    # Génération d'un NID unique pour la Carte Digitale
-    nid = f"NID-{uuid.uuid4().hex[:8].upper()}"
+    # Hachage du mot de passe
+    hashed_pwd = security.get_password_hash(user_data.password)
 
-    hashed_pw = utils.hash_password(user_data.password)
-    
+    # Génération automatique du NID pour la carte digitale
+    nid_genere = f"NID-{uuid.uuid4().hex[:6].upper()}"
+
+    # Création de l'objet User avec gestion des valeurs Optionnelles/None
     new_user = models.User(
         nom=user_data.nom,
         prenom=user_data.prenom,
         email=user_data.email,
-        password=hashed_pw,
+        password_hash=hashed_pwd,
         role=user_data.role,
-        carte_digitale_id=nid,
+        lieu_exercice=getattr(user_data, 'lieu_exercice', None),
+        carte_digitale_id=nid_genere if user_data.role == "Patient" else None,
         groupe_sanguin=user_data.groupe_sanguin,
         allergies=user_data.allergies,
         antecedents=user_data.antecedents
@@ -52,11 +57,7 @@ def register(user_data: schemas.UserRegister, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
 
-    return {
-        "message": "Compte et carte créés avec succès",
-        "carte_digitale_id": new_user.carte_digitale_id
-    }
-
+    return {"message": "Compte créé avec succès", "user_id": new_user.id}
 
 @app.post("/api/auth/login")
 def login(user_data: schemas.UserLogin, db: Session = Depends(get_db)):
