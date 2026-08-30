@@ -10,19 +10,15 @@ class User(Base):
     nom = Column(String, nullable=False)
     prenom = Column(String, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
-    password = Column(String, nullable=False)
-    role = Column(String, nullable=False) # "PATIENT" ou "MEDECIN"
+    password_hash = Column(String, nullable=False)
+    role = Column(String, nullable=False)
     
-    # Lieu d'exercice si MÉDECIN
-    lieu_consultation = Column(String, nullable=True) # ex: "Hôpital National de Niamey - Bureau 102"
-    
-    # Données Patient / Carte Digitale
+    lieu_exercice = Column(String, nullable=True)
     carte_digitale_id = Column(String, unique=True, index=True, nullable=True)
     groupe_sanguin = Column(String, nullable=True)
     allergies = Column(Text, nullable=True)
     antecedents = Column(Text, nullable=True)
 
-    # Relations
     consultations_recues = relationship("Consultation", foreign_keys="Consultation.patient_id", back_populates="patient")
     consultations_donnees = relationship("Consultation", foreign_keys="Consultation.medecin_id", back_populates="medecin")
     rdv_patients = relationship("RendezVous", foreign_keys="RendezVous.patient_id", back_populates="patient")
@@ -36,13 +32,12 @@ class RendezVous(Base):
     patient_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     medecin_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     lieu = Column(String, nullable=False)
-    date_heure = Column(DateTime, nullable=False) # Date et heure du créneau
-    statut = Column(String, default="CONFIRME") # "CONFIRME", "ANNULE", "TERMINE"
+    date_heure = Column(DateTime, nullable=False)
+    statut = Column(String, default="CONFIRME")
 
     patient = relationship("User", foreign_keys=[patient_id], back_populates="rdv_patients")
     medecin = relationship("User", foreign_keys=[medecin_id], back_populates="rdv_medecins")
 
-    # Contrainte pour empêcher deux RDV à la même heure pour un même médecin
     __table_args__ = (
         UniqueConstraint('medecin_id', 'date_heure', name='_medecin_creneau_uc'),
     )
