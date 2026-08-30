@@ -12,6 +12,7 @@ app = FastAPI(title="Santé App")
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+# Synchronisation sécurisée des tables et colonnes PostgreSQL
 try:
     models.Base.metadata.create_all(bind=engine)
     with engine.connect() as conn:
@@ -21,13 +22,14 @@ try:
         conn.execute(text("ALTER TABLE consultations ADD COLUMN IF NOT EXISTS date TIMESTAMP DEFAULT CURRENT_TIMESTAMP;"))
         conn.commit()
 except Exception as e:
-    print(f"Sync DB: {e}")
+    print(f"Sync DB warning: {e}")
 
 @app.get("/")
 def read_index():
     return FileResponse("static/index.html")
 
-# AUTH
+# ----------------- AUTHENTIFICATION -----------------
+
 @app.post("/api/auth/register", response_model=schemas.UserOut)
 def register_user(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
     db_user = db.query(models.User).filter(models.User.email == user_in.email).first()
@@ -64,7 +66,8 @@ def login(login_data: schemas.UserLogin, db: Session = Depends(get_db)):
         "prenom": user.prenom
     }
 
-# PATIENT
+# ----------------- PATIENT -----------------
+
 @app.get("/api/patient/medecins")
 def get_list_medecins(db: Session = Depends(get_db)):
     medecins = db.query(models.User).filter(models.User.role == "MEDECIN").all()
@@ -79,22 +82,38 @@ def get_list_medecins(db: Session = Depends(get_db)):
     ]
 
 @app.post("/api/patient/rdv")
-def create_rdv(data: schemas.RdvCreate, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(get_db)):
+def create_rdv(
+    data: schemas.RdvCreate, 
+    current_user: models.User = Depends(security.get_current_user), 
+    db: Session = Depends(get_db)
+):
     if current_user.role != "PATIENT":
         raise HTTPException(status_code=403, detail="Accès réservé aux patients.")
     
+    # Vérification que le médecin existe
+    medecin = db.query(models.User).filter(models.User.id == data.medecin_id, models.User.role == "MEDECIN").first()
+    if not medecin:
+        raise HTTPException(status_code=404, detail="Le médecin sélectionné n'existe pas.")
+
+    # Utilisation directe du statut en chaîne de caractères ou enum pour éviter l'erreur 500
+    statut_val = getattr(models.StatutRDV, "EN_ATTENTE", "EN_ATTENTE")
+
     new_rdv = models.RendezVous(
         patient_id=current_user.id,
         medecin_id=data.medecin_id,
         motif=data.motif,
-        statut=models.StatutRDV.EN_ATTENTE
+        statut=statut_val
     )
     db.add(new_rdv)
     db.commit()
-    return {"message": "Rendez-vous enregistré."}
+    db.refresh(new_rdv)
+    return {"message": "Rendez-vous enregistré avec succès"}
 
 @app.get("/api/patient/my-rdv")
-def get_patient_rdvs(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(get_db)):
+def get_patient_rdvs(
+    current_user: models.User = Depends(security.get_current_user), 
+    db: Session = Depends(get_db)
+):
     if current_user.role != "PATIENT":
         raise HTTPException(status_code=403, detail="Accès réservé aux patients.")
     
@@ -103,21 +122,28 @@ def get_patient_rdvs(current_user: models.User = Depends(security.get_current_us
     for r in rdvs:
         c = db.query(models.Consultation).filter(models.Consultation.rdv_id == r.id).first()
         medecin = db.query(models.User).filter(models.User.id == r.medecin_id).first()
+        
+        statut_str = r.statut.value if hasattr(r.statut, 'value') else str(r.statut)
+        
         res.append({
             "id": r.id,
             "medecin_nom": f"Dr. {medecin.prenom} {medecin.nom}" if medecin else "Praticien",
             "specialite": medecin.specialite if medecin and medecin.specialite else "Généraliste",
             "motif": r.motif,
-            "statut": str(r.statut.value) if hasattr(r.statut, 'value') else str(r.statut),
+            "statut": statut_str,
             "symptomes": c.symptomes if c else None,
             "diagnostic": c.diagnostic if c else None,
             "prescription": c.prescription if c else None
         })
     return res
 
-# MEDECIN
+# ----------------- MEDECIN -----------------
+
 @app.get("/api/medecin/rdv")
-def get_medecin_rdvs(current_user: models.User = Depends(security.get_current_user), db: Session = Depends(get_db)):
+def get_medecin_rdvs(
+    current_user: models.User = Depends(security.get_current_user), 
+    db: Session = Depends(get_db)
+):
     if current_user.role != "MEDECIN":
         raise HTTPException(status_code=403, detail="Accès réservé aux médecins.")
     
@@ -125,22 +151,31 @@ def get_medecin_rdvs(current_user: models.User = Depends(security.get_current_us
     res = []
     for r in rdvs:
         patient = db.query(models.User).filter(models.User.id == r.patient_id).first()
+        statut_str = r.statut.value if hasattr(r.statut, 'value') else str(r.statut)
         res.append({
             "id": r.id,
             "patient_id": r.patient_id,
             "nom_patient": patient.nom if patient else "Inconnu",
             "prenom_patient": patient.prenom if patient else "",
             "motif": r.motif,
-            "statut": str(r.statut.value) if hasattr(r.statut, 'value') else str(r.statut)
+            "statut": statut_str
         })
     return res
 
 @app.post("/api/medecin/consultation")
-def create_consultation(data: schemas.ConsultationCreate, current_user: models.User = Depends(security.get_current_user), db: Session = Depends(get_db)):
+def create_consultation(
+    data: schemas.ConsultationCreate, 
+    current_user: models.User = Depends(security.get_current_user), 
+    db: Session = Depends(get_db)
+):
     if current_user.role != "MEDECIN":
         raise HTTPException(status_code=403, detail="Accès réservé aux médecins.")
     
-    rdv = db.query(models.RendezVous).filter(models.RendezVous.id == data.rdv_id, models.RendezVous.medecin_id == current_user.id).first()
+    rdv = db.query(models.RendezVous).filter(
+        models.RendezVous.id == data.rdv_id, 
+        models.RendezVous.medecin_id == current_user.id
+    ).first()
+    
     if not rdv:
         raise HTTPException(status_code=404, detail="Rendez-vous introuvable.")
     
@@ -150,7 +185,8 @@ def create_consultation(data: schemas.ConsultationCreate, current_user: models.U
         diagnostic=data.diagnostic,
         prescription=data.prescription
     )
-    rdv.statut = models.StatutRDV.TERMINE
+    
+    rdv.statut = getattr(models.StatutRDV, "TERMINE", "TERMINE")
     db.add(consult)
     db.commit()
-    return {"message": "Consultation enregistrée."}
+    return {"message": "Consultation enregistrée avec succès."}
