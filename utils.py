@@ -4,6 +4,7 @@ from typing import Optional
 from passlib.context import CryptContext
 from jose import JWTError, jwt
 
+# Configuration Passlib robuste
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 SECRET_KEY = os.getenv("SECRET_KEY", "une_cle_secrete_super_securisee_123456")
 ALGORITHM = "HS256"

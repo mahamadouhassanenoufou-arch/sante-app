@@ -1,8 +1,8 @@
 import os
 import smtplib
+import traceback
 from email.message import EmailMessage
 from datetime import timedelta
-from typing import Optional
 
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 import models, schemas, utils
 from database import engine, get_db
 
-# Création automatique des tables
+# Création/Synchronisation des tables
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="SantéApp API")
@@ -47,60 +47,64 @@ def send_email_safe(to_email: str, subject: str, content: str):
             server.login(mail_user, mail_pass)
             server.send_message(msg)
     except Exception as e:
-        print(f"Erreur SMTP ignorée : {e}")
-
-# Helper pour normaliser le rôle (ex: "Médecin" -> "medecin")
-def normalize_role(role_str: str) -> str:
-    r = role_str.lower().strip()
-    if "m" in r and "dec visual" not in r:
-        if "médecin" in r or "medecin" in r:
-            return "medecin"
-    if "patient" in r:
-        return "patient"
-    return r
+        print(f"SMTP non bloquant: {e}")
 
 # --- ROUTES AUTHENTIFICATION ---
 
 @app.post("/api/auth/register", response_model=schemas.UserResponse, status_code=status.HTTP_201_CREATED)
 @app.post("/api/register", response_model=schemas.UserResponse, status_code=status.HTTP_201_CREATED)
 def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
-    db_user = db.query(models.User).filter(models.User.email == user.email).first()
-    if db_user:
-        raise HTTPException(status_code=400, detail="Cet e-mail est déjà utilisé.")
-    
-    clean_role = normalize_role(user.role)
-    hashed_pwd = utils.hash_password(user.password)
-    
-    new_user = models.User(
-        nom=user.nom,
-        prenom=user.prenom,
-        email=user.email,
-        password=hashed_pwd,
-        role=clean_role,
-        specialite=user.specialite,
-        hopital=user.hopital
-    )
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
+    try:
+        db_user = db.query(models.User).filter(models.User.email == user.email).first()
+        if db_user:
+            raise HTTPException(status_code=400, detail="Cet e-mail est déjà utilisé.")
+        
+        hashed_pwd = utils.hash_password(user.password)
+        
+        new_user = models.User(
+            nom=user.nom,
+            prenom=user.prenom,
+            email=user.email,
+            password=hashed_pwd,
+            role=user.role,
+            specialite=user.specialite,
+            hopital=user.hopital
+        )
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
 
-    send_email_safe(
-        to_email=new_user.email,
-        subject="Bienvenue sur SantéApp",
-        content=f"Bonjour {new_user.prenom},\n\nVotre compte a été créé avec succès."
-    )
+        send_email_safe(
+            to_email=new_user.email,
+            subject="Bienvenue sur SantéApp",
+            content=f"Bonjour {new_user.prenom},\n\nVotre compte a été créé avec succès."
+        )
 
-    return new_user
+        return new_user
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        print("CRASH REGISTRATION:", traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Erreur serveur: {str(e)}")
+
 
 @app.post("/api/auth/login", response_model=schemas.Token)
 @app.post("/api/login", response_model=schemas.Token)
 def login(user_credentials: schemas.UserLogin, db: Session = Depends(get_db)):
-    user = db.query(models.User).filter(models.User.email == user_credentials.email).first()
-    if not user or not utils.verify_password(user_credentials.password, user.password):
-        raise HTTPException(status_code=401, detail="Identifiants incorrects.")
+    try:
+        user = db.query(models.User).filter(models.User.email == user_credentials.email).first()
+        if not user or not utils.verify_password(user_credentials.password, user.password):
+            raise HTTPException(status_code=401, detail="Identifiants incorrects.")
 
-    access_token = utils.create_access_token(data={"sub": user.email, "role": user.role})
-    return {"access_token": access_token, "token_type": "bearer"}
+        access_token = utils.create_access_token(data={"sub": user.email, "role": user.role})
+        return {"access_token": access_token, "token_type": "bearer"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print("CRASH LOGIN:", traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Erreur de connexion: {str(e)}")
+
 
 @app.post("/api/forgot-password")
 def forgot_password(payload: schemas.ForgotPasswordRequest, db: Session = Depends(get_db)):
@@ -112,9 +116,10 @@ def forgot_password(payload: schemas.ForgotPasswordRequest, db: Session = Depend
     send_email_safe(
         to_email=user.email,
         subject="Réinitialisation de votre mot de passe",
-        content=f"Voici votre jeton de réinitialisation : {reset_token}"
+        content=f"Voici votre jeton : {reset_token}"
     )
     return {"message": "Si l'adresse existe, un e-mail de réinitialisation a été envoyé."}
+
 
 @app.post("/api/reset-password")
 def reset_password(payload: schemas.ResetPasswordConfirm, db: Session = Depends(get_db)):
@@ -130,7 +135,8 @@ def reset_password(payload: schemas.ResetPasswordConfirm, db: Session = Depends(
     db.commit()
     return {"message": "Mot de passe réinitialisé avec succès."}
 
-# --- ROUTES CRENEAUX & RENDEZ-VOUS ---
+
+# --- ROUTES CRÉNEAUX ET RDV ---
 
 @app.post("/api/creneaux", response_model=schemas.CreneauResponse, status_code=status.HTTP_201_CREATED)
 def create_creneau(creneau: schemas.CreneauCreate, db: Session = Depends(get_db)):
@@ -140,6 +146,7 @@ def create_creneau(creneau: schemas.CreneauCreate, db: Session = Depends(get_db)
     db.refresh(new_creneau)
     return new_creneau
 
+
 @app.post("/api/rendez-vous", response_model=schemas.RendezVousResponse, status_code=status.HTTP_201_CREATED)
 def create_rendez_vous(rdv: schemas.RendezVousCreate, db: Session = Depends(get_db)):
     new_rdv = models.RendezVous(**rdv.dict(), statut="en_attente")
@@ -148,7 +155,8 @@ def create_rendez_vous(rdv: schemas.RendezVousCreate, db: Session = Depends(get_
     db.refresh(new_rdv)
     return new_rdv
 
-# Static & Landing Page
+
+# --- FRONTEND ---
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/")
