@@ -11,3 +11,4 @@ email-validator
 aiofiles
 bcrypt==4.0.1
 pydantic
+python-dotenv
