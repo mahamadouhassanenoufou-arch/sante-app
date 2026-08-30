@@ -18,7 +18,9 @@ class Creneau(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     medecin_id = Column(Integer, ForeignKey("users.id"))
-    date_heure = Column(String, nullable=False)
+    date_heure = Column(String, nullable=True)
+    date_debut = Column(String, nullable=True)
+    date_fin = Column(String, nullable=True)
 
 class RendezVous(Base):
     __tablename__ = "rendez_vous"
@@ -27,3 +29,4 @@ class RendezVous(Base):
     patient_id = Column(Integer, ForeignKey("users.id"))
     creneau_id = Column(Integer, ForeignKey("creneaux.id"))
     statut = Column(String, default="en_attente")
+    motif = Column(String, nullable=True)

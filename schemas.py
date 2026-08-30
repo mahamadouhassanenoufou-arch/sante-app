@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr
-from typing import Optional
+from typing import Optional, List
 
 class UserCreate(BaseModel):
     nom: str
@@ -43,12 +43,16 @@ class ResetPasswordConfirm(BaseModel):
 
 class CreneauCreate(BaseModel):
     medecin_id: int
-    date_heure: str
+    date_heure: Optional[str] = None
+    date_debut: Optional[str] = None
+    date_fin: Optional[str] = None
 
 class CreneauResponse(BaseModel):
     id: int
     medecin_id: int
-    date_heure: str
+    date_heure: Optional[str] = None
+    date_debut: Optional[str] = None
+    date_fin: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -56,12 +60,14 @@ class CreneauResponse(BaseModel):
 class RendezVousCreate(BaseModel):
     patient_id: int
     creneau_id: int
+    motif: Optional[str] = None
 
 class RendezVousResponse(BaseModel):
     id: int
     patient_id: int
     creneau_id: int
     statut: str
+    motif: Optional[str] = None
 
     class Config:
         from_attributes = True
