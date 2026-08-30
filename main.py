@@ -12,18 +12,18 @@ import schemas
 import security
 from database import get_db, engine
 
-# Création des tables DB & Auto-migration des colonnes manquantes
+# Synchronisation et correction automatique de la table consultations
 try:
     models.Base.metadata.create_all(bind=engine)
     
-    # Correction automatique du schéma Postgres si des colonnes manquent dans 'consultations'
     with engine.connect() as conn:
-        conn.execute(text("ALTER TABLE consultations ADD COLUMN IF NOT EXISTS date TIMESTAMP DEFAULT CURRENT_TIMESTAMP;"))
+        conn.execute(text("ALTER TABLE consultations ADD COLUMN IF NOT EXISTS rdv_id INTEGER REFERENCES rendez_vous(id);"))
         conn.execute(text("ALTER TABLE consultations ADD COLUMN IF NOT EXISTS prescription TEXT;"))
+        conn.execute(text("ALTER TABLE consultations ADD COLUMN IF NOT EXISTS date TIMESTAMP DEFAULT CURRENT_TIMESTAMP;"))
         conn.commit()
-    print("Base de données synchronisée avec succès.")
+    print("Schema PostgreSQL mis a jour avec succes.")
 except Exception as e:
-    print(f"Note/Erreur DB sync: {e}")
+    print(f"Note/Erreur auto-migration: {e}")
 
 app = FastAPI(title="Santé App API", version="2.0")
 
