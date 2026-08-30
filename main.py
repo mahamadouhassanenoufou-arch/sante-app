@@ -110,9 +110,13 @@ def create_rdv(data: schemas.RdvCreate, db: Session = Depends(get_db)):
 
 @app.get("/api/patient/my-rdv")
 def get_patient_rdvs(db: Session = Depends(get_db)):
+    # Récupérer uniquement les RDV du patient connecté ou passer son ID
+    # Exemple pour filtrer les RDV de l'utilisateur courant :
     patient = db.query(models.User).filter(models.User.role == "PATIENT").first()
     if not patient:
         return []
+    
+    # Pour un filtrage strict par patient connecté, adaptez la requête :
     rdvs = db.query(models.RendezVous).filter(models.RendezVous.patient_id == patient.id).all()
     
     res = []
@@ -127,7 +131,6 @@ def get_patient_rdvs(db: Session = Depends(get_db)):
             "prescription": c.prescription if c else None
         })
     return res
-
 # --- ROUTES MEDECIN ---
 
 @app.get("/api/medecin/rdv", response_model=List[schemas.RdvOut])
