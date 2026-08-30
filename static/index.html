@@ -268,27 +268,32 @@
                 };
             }
 
-            try {
-                const res = await fetch(endpoint, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(payload)
-                });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.detail || "Erreur de traitement");
+            async function handleAuth(endpoint, payload) {
+    try {
+        const res = await fetch(endpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
 
-                if (endpoint.includes("register")) {
-                    showToast("Compte créé avec succès ! Connectez-vous.");
-                    switchTab("login");
-                } else {
-                    currentUser = data;
-                    localStorage.setItem("user", JSON.stringify(data));
-                    initDashboard();
-                }
-            } catch (err) {
-                showToast(err.message);
-            }
+        const data = await res.json();
+        
+        if (!res.ok) {
+            throw new Error(data.detail || "Une erreur est survenue lors de l'opération.");
         }
+
+        if (endpoint.includes("register")) {
+            alert("Compte créé avec succès ! Connectez-vous à présent.");
+            switchTab("login");
+        } else {
+            currentUser = data;
+            localStorage.setItem("user", JSON.stringify(data));
+            initDashboard();
+        }
+    } catch (err) {
+        alert(err.message);
+    }
+}
 
         function initDashboard() {
             document.getElementById("auth-box").classList.add("hidden");
