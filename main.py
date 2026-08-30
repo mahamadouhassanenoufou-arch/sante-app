@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 import models, schemas, utils
 from database import engine, get_db
 
-# Création des tables dans la base de données PostgreSQL
+# Création automatique des tables dans la base de données PostgreSQL
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="SantéApp API")
@@ -26,10 +26,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Service des fichiers statiques (Frontend HTML/CSS/JS)
-# Assurez-vous que vos fichiers HTML (index.html, etc.) sont bien dans le dossier 'static'
-app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
 # --- HELPER SMTP SÉCURISÉ ---
@@ -59,15 +55,9 @@ def send_email_safe(to_email: str, subject: str, content: str):
         print(f" [SMTP ERROR] Échec d'envoi du mail : {e}")
 
 
-# --- ROUTE RACINE (SERVEUR PWA FRONTEND) ---
+# --- ROUTES AUTHENTIFICATION (Alignées avec app.js) ---
 
-@app.get("/")
-def read_root():
-    return FileResponse("static/index.html")
-
-
-# --- ROUTES AUTHENTIFICATION ---
-
+@app.post("/api/auth/register", response_model=schemas.UserResponse, status_code=status.HTTP_201_CREATED)
 @app.post("/api/register", response_model=schemas.UserResponse, status_code=status.HTTP_201_CREATED)
 def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db_user = db.query(models.User).filter(models.User.email == user.email).first()
@@ -88,7 +78,7 @@ def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
 
-    # Envoi du mail de bienvenue sans bloquer l'inscription si SMTP échoue
+    # Envoi d'e-mail de bienvenue sans bloquer l'inscription si SMTP échoue
     send_email_safe(
         to_email=new_user.email,
         subject="Bienvenue sur SantéApp",
@@ -98,6 +88,7 @@ def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
     return new_user
 
 
+@app.post("/api/auth/login", response_model=schemas.Token)
 @app.post("/api/login", response_model=schemas.Token)
 def login(user_credentials: schemas.UserLogin, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.email == user_credentials.email).first()
@@ -141,7 +132,7 @@ def reset_password(payload: schemas.ResetPasswordConfirm, db: Session = Depends(
     return {"message": "Mot de passe réinitialisé avec succès."}
 
 
-# --- ROUTES CRÉNEAUX ---
+# --- ROUTES CRÉNEAUX & RENDEZ-VOUS ---
 
 @app.post("/api/creneaux", response_model=schemas.CreneauResponse, status_code=status.HTTP_201_CREATED)
 def create_creneau(creneau: schemas.CreneauCreate, db: Session = Depends(get_db)):
@@ -152,8 +143,6 @@ def create_creneau(creneau: schemas.CreneauCreate, db: Session = Depends(get_db)
     return new_creneau
 
 
-# --- ROUTES RENDEZ-VOUS ---
-
 @app.post("/api/rendez-vous", response_model=schemas.RendezVousResponse, status_code=status.HTTP_201_CREATED)
 def create_rendez_vous(rdv: schemas.RendezVousCreate, db: Session = Depends(get_db)):
     new_rdv = models.RendezVous(**rdv.dict(), statut="en_attente")
@@ -161,7 +150,12 @@ def create_rendez_vous(rdv: schemas.RendezVousCreate, db: Session = Depends(get_
     db.commit()
     db.refresh(new_rdv)
     return new_rdv
-# Route de secours si le JS frontend appelle /register sans le prefixe /api
-@app.post("/register", response_model=schemas.UserResponse, status_code=status.HTTP_201_CREATED)
-def register_alias(user: schemas.UserCreate, db: Session = Depends(get_db)):
-    return register(user, db)
+
+
+# --- GESTION DU FRONTEND STATIC ET ROUTE RACINE ---
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+@app.get("/")
+def read_root():
+    return FileResponse("static/index.html")
