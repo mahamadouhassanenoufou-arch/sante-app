@@ -1,8 +1,7 @@
 import os
 import smtplib
 from email.message import EmailMessage
-from datetime import datetime, timedelta
-from typing import List, Optional
+from datetime import timedelta
 
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,12 +12,10 @@ from sqlalchemy.orm import Session
 import models, schemas, utils
 from database import engine, get_db
 
-# Création automatique des tables dans la base de données PostgreSQL
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="SantéApp API")
 
-# Configuration CORS pour autoriser le PWA frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -27,8 +24,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-# --- HELPER SMTP SÉCURISÉ ---
 def send_email_safe(to_email: str, subject: str, content: str):
     mail_server = os.getenv("MAIL_SERVER", "smtp.gmail.com")
     mail_port = int(os.getenv("MAIL_PORT", 587))
@@ -36,7 +31,6 @@ def send_email_safe(to_email: str, subject: str, content: str):
     mail_pass = os.getenv("MAIL_PASSWORD")
 
     if not mail_user or not mail_pass:
-        print(" [SMTP WARN] Variables SMTP non définies. Mail ignoré.")
         return
 
     try:
@@ -46,17 +40,14 @@ def send_email_safe(to_email: str, subject: str, content: str):
         msg["To"] = to_email
         msg.set_content(content)
 
-        with smtplib.SMTP(mail_server, mail_port, timeout=10) as server:
+        with smtplib.SMTP(mail_server, mail_port, timeout=5) as server:
             server.starttls()
             server.login(mail_user, mail_pass)
             server.send_message(msg)
-        print(f" [SMTP OK] Mail envoyé à {to_email}")
     except Exception as e:
-        print(f" [SMTP ERROR] Échec d'envoi du mail : {e}")
+        print(f"Erreur SMTP (ignorée pour ne pas bloquer l'app) : {e}")
 
-
-# --- ROUTES AUTHENTIFICATION (Alignées avec app.js) ---
-
+# Routes Auth principales et alias
 @app.post("/api/auth/register", response_model=schemas.UserResponse, status_code=status.HTTP_201_CREATED)
 @app.post("/api/register", response_model=schemas.UserResponse, status_code=status.HTTP_201_CREATED)
 def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
@@ -78,7 +69,6 @@ def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
 
-    # Envoi d'e-mail de bienvenue sans bloquer l'inscription si SMTP échoue
     send_email_safe(
         to_email=new_user.email,
         subject="Bienvenue sur SantéApp",
@@ -86,7 +76,6 @@ def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
     )
 
     return new_user
-
 
 @app.post("/api/auth/login", response_model=schemas.Token)
 @app.post("/api/login", response_model=schemas.Token)
@@ -98,7 +87,6 @@ def login(user_credentials: schemas.UserLogin, db: Session = Depends(get_db)):
     access_token = utils.create_access_token(data={"sub": user.email, "role": user.role})
     return {"access_token": access_token, "token_type": "bearer"}
 
-
 @app.post("/api/forgot-password")
 def forgot_password(payload: schemas.ForgotPasswordRequest, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.email == payload.email).first()
@@ -106,15 +94,12 @@ def forgot_password(payload: schemas.ForgotPasswordRequest, db: Session = Depend
         return {"message": "Si l'adresse existe, un e-mail de réinitialisation a été envoyé."}
     
     reset_token = utils.create_access_token(data={"sub": user.email}, expires_delta=timedelta(minutes=15))
-    
     send_email_safe(
         to_email=user.email,
         subject="Réinitialisation de votre mot de passe",
-        content=f"Bonjour,\n\nVoici votre jeton de réinitialisation : {reset_token}"
+        content=f"Voici votre jeton de réinitialisation : {reset_token}"
     )
-
     return {"message": "Si l'adresse existe, un e-mail de réinitialisation a été envoyé."}
-
 
 @app.post("/api/reset-password")
 def reset_password(payload: schemas.ResetPasswordConfirm, db: Session = Depends(get_db)):
@@ -128,12 +113,9 @@ def reset_password(payload: schemas.ResetPasswordConfirm, db: Session = Depends(
 
     user.password = utils.hash_password(payload.new_password)
     db.commit()
-
     return {"message": "Mot de passe réinitialisé avec succès."}
 
-
-# --- ROUTES CRÉNEAUX & RENDEZ-VOUS ---
-
+# Routes créneaux et rendez-vous
 @app.post("/api/creneaux", response_model=schemas.CreneauResponse, status_code=status.HTTP_201_CREATED)
 def create_creneau(creneau: schemas.CreneauCreate, db: Session = Depends(get_db)):
     new_creneau = models.Creneau(**creneau.dict())
@@ -142,7 +124,6 @@ def create_creneau(creneau: schemas.CreneauCreate, db: Session = Depends(get_db)
     db.refresh(new_creneau)
     return new_creneau
 
-
 @app.post("/api/rendez-vous", response_model=schemas.RendezVousResponse, status_code=status.HTTP_201_CREATED)
 def create_rendez_vous(rdv: schemas.RendezVousCreate, db: Session = Depends(get_db)):
     new_rdv = models.RendezVous(**rdv.dict(), statut="en_attente")
@@ -150,9 +131,6 @@ def create_rendez_vous(rdv: schemas.RendezVousCreate, db: Session = Depends(get_
     db.commit()
     db.refresh(new_rdv)
     return new_rdv
-
-
-# --- GESTION DU FRONTEND STATIC ET ROUTE RACINE ---
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
