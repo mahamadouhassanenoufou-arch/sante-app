@@ -17,9 +17,10 @@ import models  # Assure l'enregistrement des modèles SQLAlchemy pour autogenera
 
 config = context.config
 
-# Injecter l'URL dynamique si elle est définie
+# Injecter l'URL dynamique si elle est définie en échappant les symboles %
 if SQLALCHEMY_DATABASE_URL:
-    config.set_main_option("sqlalchemy.url", SQLALCHEMY_DATABASE_URL)
+    escaped_url = SQLALCHEMY_DATABASE_URL.replace("%", "%%")
+    config.set_main_option("sqlalchemy.url", escaped_url)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
