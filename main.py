@@ -13,6 +13,7 @@ from sqlalchemy import text
 
 import models, schemas, utils
 from database import engine, get_db
+from typing import List
 
 # --- RESET AUTOMATIQUE DE LA TABLE OBSOLÈTE ET RECRÉATION ---
 with engine.connect() as conn:
@@ -179,3 +180,24 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 @app.get("/")
 def read_root():
     return FileResponse("static/index.html")
+
+# --- ROUTE OBTENTION DES MÉDECINS ---
+
+@app.get("/api/medecins", response_model=List[schemas.UserResponse])
+def get_medecins(db: Session = Depends(get_db)):
+    # Récupère tous les utilisateurs enregistrés avec le rôle 'Médecin'
+    medecins = db.query(models.User).filter(models.User.role == "Médecin").all()
+    return medecins
+
+
+# --- ROUTES LECTURE CRÉNEAUX ET RENDEZ-VOUS ---
+
+@app.get("/api/creneaux/{medecin_id}", response_model=List[schemas.CreneauResponse])
+def get_creneaux_medecin(medecin_id: int, db: Session = Depends(get_db)):
+    creneaux = db.query(models.Creneau).filter(models.Creneau.medecin_id == medecin_id).all()
+    return creneaux
+
+@app.get("/api/rendez-vous/patient/{patient_id}", response_model=List[schemas.RendezVousResponse])
+def get_rdv_patient(patient_id: int, db: Session = Depends(get_db)):
+    rdvs = db.query(models.RendezVous).filter(models.RendezVous.patient_id == patient_id).all()
+    return rdvs
