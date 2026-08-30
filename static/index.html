@@ -37,6 +37,9 @@
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-800 font-sans">
 
+    <!-- Conteneur Toast Notifications -->
+    <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col space-y-3 pointer-events-none"></div>
+
     <!-- Zone cachée dédiée à l'impression d'ordonnance PDF -->
     <div id="print-area" class="hidden"></div>
 
@@ -170,6 +173,26 @@
         const API_URL = "";
         let patientRdvsData = [];
 
+        // Système de notification Toast
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const bgColor = type === 'success' ? 'bg-emerald-600' : 'bg-red-600';
+            
+            toast.className = `${bgColor} text-white text-sm font-semibold px-4 py-3 rounded-xl shadow-lg transition-all duration-300 transform translate-x-full pointer-events-auto flex items-center justify-between space-x-3 min-w-[280px]`;
+            toast.innerHTML = `
+                <span>${message}</span>
+                <button onclick="this.parentElement.remove()" class="text-white hover:text-gray-200 font-bold ml-2">✕</button>
+            `;
+            
+            container.appendChild(toast);
+            setTimeout(() => toast.classList.remove('translate-x-full'), 10);
+            setTimeout(() => {
+                toast.classList.add('translate-x-full', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
         function getAuthHeader() {
             const token = localStorage.getItem("token");
             return token ? { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" } : { "Content-Type": "application/json" };
@@ -247,9 +270,10 @@
                 localStorage.setItem("role", data.role);
                 localStorage.setItem("nom", data.nom);
                 localStorage.setItem("prenom", data.prenom);
+                showToast("Connexion réussie !");
                 checkAuth();
             } catch (err) {
-                alert(err.message);
+                showToast(err.message, 'error');
             }
         }
 
@@ -271,15 +295,16 @@
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.detail || "Échec de l'inscription");
 
-                alert("Compte créé avec succès ! Veuillez vous connecter.");
+                showToast("Compte créé avec succès ! Connectez-vous.");
                 switchAuthTab('login');
             } catch (err) {
-                alert(err.message);
+                showToast(err.message, 'error');
             }
         }
 
         function logout() {
             localStorage.clear();
+            showToast("Déconnexion effectuée");
             checkAuth();
         }
 
@@ -308,11 +333,11 @@
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.detail || "Erreur réservation");
 
-                alert("Rendez-vous réservé avec succès !");
+                showToast("Rendez-vous réservé avec succès !");
                 document.getElementById("rdv-motif").value = "";
                 loadPatientRDVs();
             } catch (err) {
-                alert(err.message);
+                showToast(err.message, 'error');
             }
         }
 
@@ -453,10 +478,10 @@
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.detail || "Erreur enregistrement consultation");
 
-                alert("Consultation enregistrée avec succès !");
+                showToast("Consultation enregistrée avec succès !");
                 loadMedecinRDVs();
             } catch (err) {
-                alert(err.message);
+                showToast(err.message, 'error');
             }
         }
 
@@ -478,7 +503,7 @@
             if (!deferredPrompt) return;
             deferredPrompt.prompt();
             const { outcome } = await deferredPrompt.userChoice;
-            if (outcome === 'accepted') console.log('PWA installée !');
+            if (outcome === 'accepted') showToast('Installation PWA acceptée !');
             deferredPrompt = null;
             if (installBtn) installBtn.classList.add('hidden');
         }
