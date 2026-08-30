@@ -1,5 +1,7 @@
 import uuid
 from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List
@@ -9,10 +11,12 @@ import schemas
 import security
 from database import engine, get_db
 
+# Création des tables dans la base
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="SantéApp API")
 
+# Configuration CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -21,9 +25,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Montage du dossier statique (CSS, JS, Manifest, PWA)
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Route racine : Sert la page d'accueil de la PWA
 @app.get("/")
 def read_root():
-    return {"status": "API SantéApp opérationnelle"}
+    return FileResponse("static/index.html")
+
+# ==========================================
+# AUTHENTIFICATION & COMPTES
+# ==========================================
 
 @app.post("/api/auth/register")
 def register(user_data: schemas.UserRegister, db: Session = Depends(get_db)):
