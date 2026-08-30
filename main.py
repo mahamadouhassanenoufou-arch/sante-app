@@ -90,23 +90,35 @@ def create_rdv(
     if current_user.role != "PATIENT":
         raise HTTPException(status_code=403, detail="Accès réservé aux patients.")
     
-    # Vérification que le médecin existe
-    medecin = db.query(models.User).filter(models.User.id == data.medecin_id, models.User.role == "MEDECIN").first()
+    # Vérification de l'existence du médecin
+    medecin = db.query(models.User).filter(
+        models.User.id == int(data.medecin_id), 
+        models.User.role == "MEDECIN"
+    ).first()
+    
     if not medecin:
         raise HTTPException(status_code=404, detail="Le médecin sélectionné n'existe pas.")
 
-    # Utilisation directe du statut en chaîne de caractères ou enum pour éviter l'erreur 500
-    statut_val = getattr(models.StatutRDV, "EN_ATTENTE", "EN_ATTENTE")
+    # Détermination sécurisée du statut (String brut)
+    statut_val = "EN_ATTENTE"
+    if hasattr(models, "StatutRDV") and hasattr(models.StatutRDV, "EN_ATTENTE"):
+        statut_val = models.StatutRDV.EN_ATTENTE.value if hasattr(models.StatutRDV.EN_ATTENTE, 'value') else "EN_ATTENTE"
 
     new_rdv = models.RendezVous(
-        patient_id=current_user.id,
-        medecin_id=data.medecin_id,
+        patient_id=int(current_user.id),
+        medecin_id=int(data.medecin_id),
         motif=data.motif,
         statut=statut_val
     )
-    db.add(new_rdv)
-    db.commit()
-    db.refresh(new_rdv)
+    
+    try:
+        db.add(new_rdv)
+        db.commit()
+        db.refresh(new_rdv)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Erreur lors de la réservation : {str(e)}")
+
     return {"message": "Rendez-vous enregistré avec succès"}
 
 @app.get("/api/patient/my-rdv")
@@ -172,7 +184,7 @@ def create_consultation(
         raise HTTPException(status_code=403, detail="Accès réservé aux médecins.")
     
     rdv = db.query(models.RendezVous).filter(
-        models.RendezVous.id == data.rdv_id, 
+        models.RendezVous.id == int(data.rdv_id), 
         models.RendezVous.medecin_id == current_user.id
     ).first()
     
@@ -186,7 +198,17 @@ def create_consultation(
         prescription=data.prescription
     )
     
-    rdv.statut = getattr(models.StatutRDV, "TERMINE", "TERMINE")
-    db.add(consult)
-    db.commit()
+    statut_done = "TERMINE"
+    if hasattr(models, "StatutRDV") and hasattr(models.StatutRDV, "TERMINE"):
+        statut_done = models.StatutRDV.TERMINE.value if hasattr(models.StatutRDV.TERMINE, 'value') else "TERMINE"
+        
+    rdv.statut = statut_done
+    
+    try:
+        db.add(consult)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Erreur enregistrement consultation : {str(e)}")
+
     return {"message": "Consultation enregistrée avec succès."}
