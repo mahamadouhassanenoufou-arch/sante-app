@@ -24,14 +24,24 @@
             <h1 class="text-2xl font-bold tracking-wide">SantéApp</h1>
             <span class="bg-indigo-700 text-xs text-indigo-200 px-2.5 py-1 rounded-full font-medium">Espace Sécurisé</span>
         </div>
-        <div id="user-info" class="hidden flex items-center space-x-4">
-            <div class="text-right">
-                <span id="nav-user-name" class="block font-semibold text-sm"></span>
-                <span id="nav-user-role" class="block text-xs text-indigo-200 capitalize"></span>
-            </div>
-            <button onclick="logout()" class="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-2 rounded-lg transition font-medium">
-                Déconnexion
+        <div class="flex items-center space-x-4">
+            <!-- Bouton d'installation PWA (masqué par défaut) -->
+            <button id="pwa-install-btn" onclick="installPWA()" class="hidden bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold px-3 py-2 rounded-lg transition flex items-center space-x-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                </svg>
+                <span>Installer l'application</span>
             </button>
+
+            <div id="user-info" class="hidden flex items-center space-x-4">
+                <div class="text-right">
+                    <span id="nav-user-name" class="block font-semibold text-sm"></span>
+                    <span id="nav-user-role" class="block text-xs text-indigo-200 capitalize"></span>
+                </div>
+                <button onclick="logout()" class="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-2 rounded-lg transition font-medium">
+                    Déconnexion
+                </button>
+            </div>
         </div>
     </nav>
 
@@ -379,6 +389,40 @@
 
         // Initialisation de l'état d'authentification au chargement
         window.onload = checkAuth;
+    </script>
+
+    <!-- Gestion de l'installation PWA -->
+    <script>
+        let deferredPrompt;
+        const installBtn = document.getElementById('pwa-install-btn');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            if (installBtn) {
+                installBtn.classList.remove('hidden');
+            }
+        });
+
+        async function installPWA() {
+            if (!deferredPrompt) return;
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            if (outcome === 'accepted') {
+                console.log('Installation de la PWA acceptée');
+            }
+            deferredPrompt = null;
+            if (installBtn) {
+                installBtn.classList.add('hidden');
+            }
+        }
+
+        window.addEventListener('appinstalled', () => {
+            console.log('PWA installée avec succès !');
+            if (installBtn) {
+                installBtn.classList.add('hidden');
+            }
+        });
     </script>
 
     <!-- Enregistrement du Service Worker pour PWA -->
