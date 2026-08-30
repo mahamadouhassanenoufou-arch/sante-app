@@ -3,211 +3,447 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SantéApp - Gestion de RDV Médicaux</title>
+    <title>SantéApp - Carte Digitale & Consultations</title>
+
     <link rel="manifest" href="/static/manifest.json">
     <meta name="theme-color" content="#0284c7">
-    <style>
-        :root {
-            --primary: #0284c7;
-            --primary-dark: #0369a1;
-            --bg: #f8fafc;
-            --card-bg: #ffffff;
-            --text: #1e293b;
-            --text-muted: #64748b;
-            --border: #e2e8f0;
-            --danger: #ef4444;
-            --success: #22c55e;
-        }
-
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
-        body { background-color: var(--bg); color: var(--text); display: flex; flex-direction: column; min-height: 100vh; }
-
-        header {
-            background-color: var(--primary);
-            color: white;
-            padding: 1rem 1.5rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-
-        header h1 { font-size: 1.4rem; }
-        .user-info { display: flex; align-items: center; gap: 1rem; }
-
-        button {
-            cursor: pointer;
-            padding: 0.6rem 1.2rem;
-            border: none;
-            border-radius: 6px;
-            font-weight: 600;
-            transition: background 0.2s;
-        }
-
-        .btn-primary { background-color: var(--primary); color: white; }
-        .btn-primary:hover { background-color: var(--primary-dark); }
-        .btn-outline { background: transparent; border: 1px solid white; color: white; }
-
-        main { flex: 1; max-width: 800px; width: 100%; margin: 2rem auto; padding: 0 1rem; }
-        .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 1.5rem; }
-
-        .form-group { margin-bottom: 1rem; }
-        .form-group label { display: block; margin-bottom: 0.4rem; font-size: 0.9rem; color: var(--text-muted); }
-        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 0.6rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem; }
-
-        .form-link { display: inline-block; margin-top: 0.8rem; color: var(--primary); text-decoration: none; font-size: 0.9rem; cursor: pointer; }
-        .alert { padding: 0.8rem 1rem; border-radius: 6px; margin-bottom: 1rem; font-size: 0.9rem; }
-        .alert-danger { background-color: #fef2f2; color: var(--danger); border: 1px solid #fecaca; }
-        .alert-success { background-color: #f0fdf4; color: var(--success); border: 1px solid #bbf7d0; }
-        .hidden { display: none !important; }
-
-        footer { text-align: center; padding: 1rem; color: var(--text-muted); font-size: 0.85rem; border-top: 1px solid var(--border); }
-    </style>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Bibliothèques QR Code & Scanner HTML5 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
 </head>
-<body>
+<body class="bg-slate-900 min-h-screen text-slate-100 font-sans flex flex-col justify-between">
 
-    <header>
-        <h1>🏥 SantéApp</h1>
-        <div id="user-nav" class="user-info hidden">
-            <span id="user-display-name"></span>
-            <button class="btn-outline" onclick="logout()">Déconnexion</button>
+    <!-- En-tête / Nav -->
+    <header class="bg-slate-800 border-b border-slate-700 px-6 py-4 flex justify-between items-center shadow-lg">
+        <div class="flex items-center space-x-3">
+            <div class="w-9 h-9 bg-sky-500 rounded-xl flex items-center justify-center font-bold text-white text-lg">S</div>
+            <div>
+                <h1 class="text-lg font-bold text-white leading-none">SantéApp</h1>
+                <span id="user-role-badge" class="text-xs text-sky-400">PWA Santé</span>
+            </div>
+        </div>
+
+        <div id="user-nav" class="hidden flex items-center space-x-3">
+            <button onclick="logout()" class="text-xs bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/30 px-3 py-1.5 rounded-lg transition">
+                Déconnexion
+            </button>
         </div>
     </header>
 
-    <main>
-        <div id="alert-box" class="alert hidden"></div>
+    <!-- Notification Toast -->
+    <div id="toast" class="hidden fixed top-20 right-5 z-50 bg-sky-600 text-white px-4 py-2.5 rounded-xl shadow-xl text-sm font-semibold transition"></div>
 
-        <!-- SE CONNECTER -->
-        <div id="view-login" class="card">
-            <h2>Connexion</h2>
-            <form id="form-login" onsubmit="handleLogin(event)">
-                <div class="form-group">
-                    <label>Adresse E-mail</label>
-                    <input type="email" id="login-email" required>
-                </div>
-                <div class="form-group">
-                    <label>Mot de passe</label>
-                    <input type="password" id="login-password" required>
-                </div>
-                <button type="submit" class="btn-primary" style="width: 100%;">Se connecter</button>
-            </form>
-            <div style="display: flex; justify-content: space-between; margin-top: 1rem;">
-                <a class="form-link" onclick="showView('register')">Créer un compte</a>
-                <a class="form-link" onclick="showView('forgot-password')">Mot de passe oublié ?</a>
+    <main class="max-w-2xl mx-auto w-full p-4 flex-grow">
+
+        <!-- 1. AUTHENTIFICATION -->
+        <div id="auth-box" class="max-w-md mx-auto bg-slate-800 border border-slate-700 p-6 rounded-2xl shadow-2xl">
+            <div class="flex justify-center space-x-4 mb-6 border-b border-slate-700 pb-3">
+                <button id="tab-login" onclick="switchTab('login')" class="text-sky-400 font-bold border-b-2 border-sky-400 pb-1">Connexion</button>
+                <button id="tab-reg" onclick="switchTab('register')" class="text-slate-400 font-bold border-b-2 border-transparent pb-1">Créer un Compte</button>
             </div>
-        </div>
 
-        <!-- INSCRIPTION -->
-        <div id="view-register" class="card hidden">
-            <h2>Inscription</h2>
-            <form id="form-register" onsubmit="handleRegister(event)">
-                <div class="form-group">
-                    <label>Nom</label>
-                    <input type="text" id="reg-nom" required>
+            <!-- Connexion -->
+            <form id="form-login" onsubmit="handleAuth(event, '/api/auth/login')" class="space-y-4">
+                <div>
+                    <label class="block text-xs uppercase text-slate-400 font-bold mb-1">Email</label>
+                    <input type="email" id="login-email" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white">
                 </div>
-                <div class="form-group">
-                    <label>Prénom</label>
-                    <input type="text" id="reg-prenom" required>
+                <div>
+                    <label class="block text-xs uppercase text-slate-400 font-bold mb-1">Mot de passe</label>
+                    <input type="password" id="login-pass" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white">
                 </div>
-                <div class="form-group">
-                    <label>Adresse E-mail</label>
-                    <input type="email" id="reg-email" required>
+                <button type="submit" class="w-full bg-sky-500 hover:bg-sky-600 font-bold py-3 rounded-xl transition text-white shadow-lg">
+                    Se Connecter
+                </button>
+            </form>
+
+            <!-- Inscription -->
+            <form id="form-register" onsubmit="handleAuth(event, '/api/auth/register')" class="space-y-3 hidden">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs uppercase text-slate-400 font-bold mb-1">Nom</label>
+                        <input type="text" id="reg-nom" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white">
+                    </div>
+                    <div>
+                        <label class="block text-xs uppercase text-slate-400 font-bold mb-1">Prénom</label>
+                        <input type="text" id="reg-prenom" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white">
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>Mot de passe</label>
-                    <input type="password" id="reg-password" required>
+                <div>
+                    <label class="block text-xs uppercase text-slate-400 font-bold mb-1">Email</label>
+                    <input type="email" id="reg-email" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white">
                 </div>
-                <div class="form-group">
-                    <label>Rôle</label>
-                    <select id="reg-role" onchange="toggleSpecialiteField()">
+                <div>
+                    <label class="block text-xs uppercase text-slate-400 font-bold mb-1">Mot de passe</label>
+                    <input type="password" id="reg-pass" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white">
+                </div>
+                <div>
+                    <label class="block text-xs uppercase text-slate-400 font-bold mb-1">Rôle</label>
+                    <select id="reg-role" onchange="toggleRoleFields()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white">
                         <option value="PATIENT">Patient</option>
-                        <option value="MEDECIN">Médecin</option>
+                        <option value="MEDECIN">Médecin / Praticien</option>
                     </select>
                 </div>
-                <div class="form-group hidden" id="group-specialite">
-                    <label>Spécialité médicale</label>
-                    <input type="text" id="reg-specialite" placeholder="Ex: Cardiologue, Généraliste...">
-                </div>
-                <button type="submit" class="btn-primary" style="width: 100%;">S'inscrire</button>
-            </form>
-            <a class="form-link" onclick="showView('login')">Déjà un compte ? Se connecter</a>
-        </div>
 
-        <!-- MOT DE PASSE OUBLIÉ -->
-        <div id="view-forgot-password" class="card hidden">
-            <h2>Réinitialisation du mot de passe</h2>
-            <form id="form-forgot-password" onsubmit="handleForgotPassword(event)">
-                <div class="form-group">
-                    <label>Adresse E-mail</label>
-                    <input type="email" id="forgot-email" required>
+                <!-- Champs Patient -->
+                <div id="patient-fields" class="space-y-2">
+                    <div class="grid grid-cols-2 gap-2">
+                        <input type="text" id="reg-sang" placeholder="Groupe (ex: A+)" class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white">
+                        <input type="text" id="reg-allergies" placeholder="Allergies" class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white">
+                    </div>
+                    <textarea id="reg-antecedents" placeholder="Antécédents médicaux" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white"></textarea>
                 </div>
-                <button type="submit" class="btn-primary" style="width: 100%;">Envoyer le lien</button>
-            </form>
-            <a class="form-link" onclick="showView('login')">Retour</a>
-        </div>
 
-        <!-- RESET PASSWORD -->
-        <div id="view-reset-password" class="card hidden">
-            <h2>Nouveau mot de passe</h2>
-            <form id="form-reset-password" onsubmit="handleResetPassword(event)">
-                <input type="hidden" id="reset-token">
-                <div class="form-group">
-                    <label>Nouveau mot de passe</label>
-                    <input type="password" id="reset-new-password" required minlength="6">
+                <!-- Champs Médecin -->
+                <div id="medecin-fields" class="hidden">
+                    <input type="text" id="reg-lieu" placeholder="Lieu d'exercice (ex: Hôpital National Niamey)" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white">
                 </div>
-                <button type="submit" class="btn-primary" style="width: 100%;">Mettre à jour</button>
+
+                <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-600 font-bold py-3 rounded-xl transition text-white">
+                    Créer mon Compte
+                </button>
             </form>
         </div>
 
-        <!-- DASHBOARD PATIENT -->
-        <div id="view-patient-dashboard" class="hidden">
-            <div class="card">
-                <h3>Prendre un Rendez-vous</h3>
-                <form id="form-rdv" onsubmit="handleCreateRDV(event)">
-                    <div class="form-group">
-                        <label>Médecin</label>
-                        <select id="rdv-medecin-select" onchange="loadDoctorCreneaux(this.value)" required>
-                            <option value="">-- Sélectionnez un médecin --</option>
-                        </select>
+
+        <!-- 2. INTERFACE PATIENT -->
+        <div id="patient-view" class="hidden space-y-6">
+            
+            <!-- Carte Digitale -->
+            <div id="printable-card" class="bg-gradient-to-br from-sky-600 via-indigo-700 to-slate-900 p-6 rounded-3xl shadow-2xl border border-sky-400/30">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <span class="text-[10px] uppercase tracking-widest text-sky-200 block">République du Niger</span>
+                        <h2 class="text-lg font-black text-white">CARTE DIGITALE DE SANTÉ</h2>
                     </div>
-                    <div class="form-group">
-                        <label>Créneau disponible</label>
-                        <select id="rdv-creneau-select" required>
-                            <option value="">-- Sélectionnez d'abord un médecin --</option>
-                        </select>
+                    <div class="w-8 h-6 bg-amber-400/80 rounded border border-amber-200"></div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-4 items-center">
+                    <div class="col-span-2 space-y-1">
+                        <p id="p-card-fullname" class="text-base font-bold text-white"></p>
+                        <p id="p-card-nid" class="text-xs font-mono text-sky-200"></p>
+                        <div class="text-[11px] text-slate-200 pt-2 space-y-0.5">
+                            <p><strong>Groupe:</strong> <span id="p-card-sang"></span></p>
+                            <p><strong>Allergies:</strong> <span id="p-card-allergies"></span></p>
+                            <p><strong>Antécédents:</strong> <span id="p-card-antecedents"></span></p>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label>Motif</label>
-                        <textarea id="rdv-motif" rows="2" required placeholder="Motif de la consultation..."></textarea>
+                    <div class="bg-white p-2 rounded-xl flex justify-center">
+                        <div id="p-qrcode"></div>
                     </div>
-                    <button type="submit" class="btn-primary">Réserver le créneau</button>
+                </div>
+            </div>
+
+            <!-- Module Prise de RDV -->
+            <div class="bg-slate-800 border border-slate-700 p-5 rounded-2xl space-y-4">
+                <h3 class="text-md font-bold text-white">Prendre un Rendez-vous</h3>
+                <form onsubmit="handlePrendreRDV(event)" class="space-y-3">
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Médecin & Lieu</label>
+                        <select id="rdv-medecin-select" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white"></select>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Date et heure du créneau</label>
+                        <input type="datetime-local" id="rdv-datetime" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white">
+                    </div>
+                    <button type="submit" class="w-full bg-sky-500 hover:bg-sky-600 font-bold py-2.5 rounded-xl transition text-white text-sm">
+                        Réserver le Créneau
+                    </button>
                 </form>
             </div>
         </div>
 
-        <!-- DASHBOARD MÉDECIN -->
-        <div id="view-medecin-dashboard" class="hidden">
-            <div class="card">
-                <h3>Ajouter un Créneau de Disponibilité</h3>
-                <form id="form-creneau" onsubmit="handleCreateCreneau(event)">
-                    <div class="form-group">
-                        <label>Date & Heure de début</label>
-                        <input type="datetime-local" id="creneau-debut" required>
+
+        <!-- 3. INTERFACE MÉDECIN -->
+        <div id="medecin-view" class="hidden space-y-6">
+            
+            <!-- Zone de Scan / Saisie NID -->
+            <div class="bg-slate-800 border border-slate-700 p-5 rounded-2xl space-y-4">
+                <h3 class="text-md font-bold text-white">Scanner / Consulter la Carte Patient</h3>
+                
+                <div class="flex space-x-2">
+                    <input type="text" id="scan-nid-input" placeholder="Saisir le NID (ex: NID-88A9F)" class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-sm text-white">
+                    <button onclick="chargerCartePatient(document.getElementById('scan-nid-input').value)" class="bg-sky-500 hover:bg-sky-600 px-4 py-2 rounded-xl text-sm font-bold">
+                        Rechercher
+                    </button>
+                </div>
+
+                <div id="reader" class="w-full overflow-hidden rounded-xl bg-slate-900 border border-slate-700 min-h-[200px]"></div>
+            </div>
+
+            <!-- Fiche du Patient Scanné -->
+            <div id="patient-scanned-card" class="hidden bg-slate-800 border border-slate-700 p-5 rounded-2xl space-y-4">
+                <div class="border-b border-slate-700 pb-3 flex justify-between items-start">
+                    <div>
+                        <h3 id="scanned-patient-name" class="text-lg font-bold text-white"></h3>
+                        <p id="scanned-patient-nid" class="text-xs text-sky-400 font-mono"></p>
                     </div>
-                    <div class="form-group">
-                        <label>Date & Heure de fin</label>
-                        <input type="datetime-local" id="creneau-fin" required>
-                    </div>
-                    <button type="submit" class="btn-primary">Publier le créneau</button>
+                    <span class="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs px-2.5 py-1 rounded-lg">Carte Vérifiée</span>
+                </div>
+
+                <!-- Antécédents -->
+                <div class="grid grid-cols-3 gap-2 bg-slate-900 p-3 rounded-xl text-xs">
+                    <div><span class="text-slate-400 block">Sang:</span><strong id="scanned-sang"></strong></div>
+                    <div><span class="text-slate-400 block">Allergies:</span><strong id="scanned-allergies"></strong></div>
+                    <div><span class="text-slate-400 block">Antécédents:</span><strong id="scanned-antecedents"></strong></div>
+                </div>
+
+                <!-- Historique Consultations -->
+                <div>
+                    <h4 class="text-xs uppercase font-bold text-slate-400 mb-2">Historique Médical</h4>
+                    <div id="scanned-historique" class="space-y-2 max-h-40 overflow-y-auto pr-1"></div>
+                </div>
+
+                <!-- Formulaire Nouvelle Consultation -->
+                <form onsubmit="handleAjoutConsultation(event)" class="border-t border-slate-700 pt-3 space-y-3">
+                    <h4 class="text-xs uppercase font-bold text-sky-400">Nouvelle Consultation</h4>
+                    <textarea id="cons-symptomes" required placeholder="Symptômes constatés" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white"></textarea>
+                    <textarea id="cons-diagnostic" required placeholder="Diagnostic" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white"></textarea>
+                    <textarea id="cons-prescription" placeholder="Prescription / Ordonnance" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white"></textarea>
+                    <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-600 font-bold py-2.5 rounded-xl transition text-white text-sm">
+                        Enregistrer la Consultation sur la Carte
+                    </button>
                 </form>
             </div>
+
         </div>
+
     </main>
 
-    <footer>
-        <p>&copy; 2026 SantéApp — Système de Santé Connecté PWA</p>
-    </footer>
+    <script>
+        let currentUser = null;
+        let currentScannedNid = null;
+        let html5QrcodeScanner = null;
 
-    <script src="/static/app.js"></script>
+        function showToast(msg) {
+            const t = document.getElementById("toast");
+            t.innerText = msg;
+            t.classList.remove("hidden");
+            setTimeout(() => t.classList.add("hidden"), 3000);
+        }
+
+        function switchTab(tab) {
+            if (tab === 'login') {
+                document.getElementById("form-login").classList.remove("hidden");
+                document.getElementById("form-register").classList.add("hidden");
+            } else {
+                document.getElementById("form-login").classList.add("hidden");
+                document.getElementById("form-register").classList.remove("hidden");
+            }
+        }
+
+        function toggleRoleFields() {
+            const role = document.getElementById("reg-role").value;
+            if (role === "PATIENT") {
+                document.getElementById("patient-fields").classList.remove("hidden");
+                document.getElementById("medecin-fields").classList.add("hidden");
+            } else {
+                document.getElementById("patient-fields").classList.add("hidden");
+                document.getElementById("medecin-fields").classList.remove("hidden");
+            }
+        }
+
+        async function handleAuth(e, endpoint) {
+            e.preventDefault();
+            let payload = {};
+
+            if (endpoint.includes("login")) {
+                payload = {
+                    email: document.getElementById("login-email").value,
+                    password: document.getElementById("login-pass").value
+                };
+            } else {
+                payload = {
+                    nom: document.getElementById("reg-nom").value,
+                    prenom: document.getElementById("reg-prenom").value,
+                    email: document.getElementById("reg-email").value,
+                    password: document.getElementById("reg-pass").value,
+                    role: document.getElementById("reg-role").value,
+                    groupe_sanguin: document.getElementById("reg-sang").value || null,
+                    allergies: document.getElementById("reg-allergies").value || null,
+                    antecedents: document.getElementById("reg-antecedents").value || null
+                };
+            }
+
+            try {
+                const res = await fetch(endpoint, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || "Erreur de traitement");
+
+                if (endpoint.includes("register")) {
+                    showToast("Compte créé avec succès ! Connectez-vous.");
+                    switchTab("login");
+                } else {
+                    currentUser = data;
+                    localStorage.setItem("user", JSON.stringify(data));
+                    initDashboard();
+                }
+            } catch (err) {
+                showToast(err.message);
+            }
+        }
+
+        function initDashboard() {
+            document.getElementById("auth-box").classList.add("hidden");
+            document.getElementById("user-nav").classList.remove("hidden");
+            document.getElementById("user-role-badge").innerText = currentUser.role;
+
+            if (currentUser.role === "PATIENT") {
+                renderPatientView();
+            } else {
+                renderMedecinView();
+            }
+        }
+
+        function renderPatientView() {
+            document.getElementById("patient-view").classList.remove("hidden");
+
+            document.getElementById("p-card-fullname").innerText = `${currentUser.prenom} ${currentUser.nom}`;
+            document.getElementById("p-card-nid").innerText = currentUser.carte_digitale_id;
+            document.getElementById("p-card-sang").innerText = currentUser.groupe_sanguin || "Non renseigné";
+            document.getElementById("p-card-allergies").innerText = currentUser.allergies || "Aucune";
+            document.getElementById("p-card-antecedents").innerText = currentUser.antecedents || "Aucun";
+
+            // Génération QR Code
+            document.getElementById("p-qrcode").innerHTML = "";
+            new QRCode(document.getElementById("p-qrcode"), {
+                text: currentUser.carte_digitale_id,
+                width: 80,
+                height: 80,
+                colorDark : "#0f172a",
+                colorLight : "#ffffff"
+            });
+
+            chargerMedecinsSelect();
+        }
+
+        async function chargerMedecinsSelect() {
+            try {
+                const res = await fetch("/api/medecins/liste");
+                const medecins = await res.json();
+                const select = document.getElementById("rdv-medecin-select");
+                select.innerHTML = medecins.map(m => `<option value="${m.id}">${m.nom} — ${m.lieu}</option>`).join("");
+            } catch (err) {
+                console.error("Erreur chargement médecins", err);
+            }
+        }
+
+        async function handlePrendreRDV(e) {
+            e.preventDefault();
+            const medecinId = document.getElementById("rdv-medecin-select").value;
+            const datetime = document.getElementById("rdv-datetime").value;
+
+            try {
+                const res = await fetch(`/api/rdv/creer?patient_id=${currentUser.user_id}&medecin_id=${medecinId}&date_heure=${encodeURIComponent(datetime)}`, {
+                    method: "POST"
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || "Créneau indisponible");
+
+                showToast(`RDV Confirmé à ${data.lieu} !`);
+            } catch (err) {
+                showToast(err.message);
+            }
+        }
+
+        function renderMedecinView() {
+            document.getElementById("medecin-view").classList.remove("hidden");
+
+            // Initialisation de la caméra / scanner QR
+            try {
+                html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: { width: 200, height: 200 } });
+                html5QrcodeScanner.render((decodedText) => {
+                    chargerCartePatient(decodedText);
+                });
+            } catch(e) {
+                console.log("Scanner caméra non disponible");
+            }
+        }
+
+        async function chargerCartePatient(nid) {
+            if (!nid) return;
+            try {
+                const res = await fetch(`/api/patient/scan/${nid.trim()}`);
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || "Carte non trouvée");
+
+                currentScannedNid = data.carte_digitale_id;
+                document.getElementById("patient-scanned-card").classList.remove("hidden");
+                document.getElementById("scanned-patient-name").innerText = `${data.prenom} ${data.nom}`;
+                document.getElementById("scanned-patient-nid").innerText = data.carte_digitale_id;
+                document.getElementById("scanned-sang").innerText = data.groupe_sanguin || "N/A";
+                document.getElementById("scanned-allergies").innerText = data.allergies || "Aucune";
+                document.getElementById("scanned-antecedents").innerText = data.antecedents || "Aucun";
+
+                // Affichage historique
+                const histDiv = document.getElementById("scanned-historique");
+                if (data.historique.length === 0) {
+                    histDiv.innerHTML = `<p class="text-xs text-slate-500 italic">Aucune consultation enregistrée.</p>`;
+                } else {
+                    histDiv.innerHTML = data.historique.map(h => `
+                        <div class="bg-slate-900 p-2.5 rounded-xl text-xs space-y-1">
+                            <div class="flex justify-between text-slate-400">
+                                <span>${h.medecin_nom}</span>
+                                <span>${new Date(h.date_consultation).toLocaleDateString()}</span>
+                            </div>
+                            <p class="text-white"><strong>Diag:</strong> ${h.diagnostic}</p>
+                            ${h.prescription ? `<p class="text-sky-300"><strong>Rx:</strong> ${h.prescription}</p>` : ''}
+                        </div>
+                    `).join("");
+                }
+
+                showToast("Carte Patient chargée avec succès !");
+            } catch (err) {
+                showToast(err.message);
+            }
+        }
+
+        async function handleAjoutConsultation(e) {
+            e.preventDefault();
+            if (!currentScannedNid) return;
+
+            const payload = {
+                carte_digitale_id: currentScannedNid,
+                symptomes: document.getElementById("cons-symptomes").value,
+                diagnostic: document.getElementById("cons-diagnostic").value,
+                prescription: document.getElementById("cons-prescription").value
+            };
+
+            try {
+                const res = await fetch(`/api/consultations/create?medecin_id=${currentUser.user_id}`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail);
+
+                showToast("Consultation enregistrée !");
+                chargerCartePatient(currentScannedNid); // Rafraîchit la carte
+            } catch (err) {
+                showToast(err.message);
+            }
+        }
+
+        function logout() {
+            localStorage.clear();
+            location.reload();
+        }
+
+        window.onload = () => {
+            const saved = localStorage.getItem("user");
+            if (saved) {
+                currentUser = JSON.parse(saved);
+                initDashboard();
+            }
+        };
+    </script>
 </body>
 </html>

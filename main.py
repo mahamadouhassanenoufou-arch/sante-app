@@ -1,178 +1,197 @@
-import os
-import smtplib
-import traceback
-from email.message import EmailMessage
-from datetime import timedelta
-from typing import List
-
 from fastapi import FastAPI, Depends, HTTPException, status
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import text, func
+import uuid
+from typing import List
 
 import models, schemas, utils
 from database import engine, get_db
 
-# Recréation des tables
+# Création automatique des tables
 models.Base.metadata.create_all(bind=engine)
 
-# Injection automatique d'un médecin de démonstration si aucun médecin n'est trouvé
-with Session(engine) as session:
-    try:
-        medecin_exist = session.query(models.User).filter(
-            func.lower(models.User.role).like("%medecin%") | 
-            func.lower(models.User.role).like("%médecin%")
-        ).first()
+app = FastAPI(title="SantéApp - Carte Digitale PWA")
 
-        if not medecin_exist:
-            test_medecin = models.User(
-                nom="Mati",
-                prenom="Inoussa",
-                email="dr.mati@sante.ne",
-                password=utils.hash_password("123456"),
-                role="Médecin",
-                specialite="Médecine Générale",
-                hopital="Hôpital National de Niamey"
-            )
-            session.add(test_medecin)
-            session.commit()
-            print("Médecin de démonstration injecté avec succès.")
-    except Exception as e:
-        print(f"Info injection médecin: {e}")
-
-app = FastAPI(title="SantéApp API")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-def send_email_safe(to_email: str, subject: str, content: str):
-    mail_server = os.getenv("MAIL_SERVER", "smtp.gmail.com")
-    mail_port = int(os.getenv("MAIL_PORT", 587))
-    mail_user = os.getenv("MAIL_USERNAME")
-    mail_pass = os.getenv("MAIL_PASSWORD")
-
-    if not mail_user or not mail_pass:
-        return
-
-    try:
-        msg = EmailMessage()
-        msg["Subject"] = subject
-        msg["From"] = mail_user
-        msg["To"] = to_email
-        msg.set_content(content)
-
-        with smtplib.SMTP(mail_server, mail_port, timeout=5) as server:
-            server.starttls()
-            server.login(mail_user, mail_pass)
-            server.send_message(msg)
-    except Exception as e:
-        print(f"SMTP non bloquant: {e}")
-
-
-# --- AUTHENTIFICATION ---
-
-@app.post("/api/auth/register", response_model=schemas.UserResponse, status_code=status.HTTP_201_CREATED)
-@app.post("/api/register", response_model=schemas.UserResponse, status_code=status.HTTP_201_CREATED)
-def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
-    try:
-        db_user = db.query(models.User).filter(models.User.email == user.email).first()
-        if db_user:
-            raise HTTPException(status_code=400, detail="Cet e-mail est déjà utilisé.")
-        
-        hashed_pwd = utils.hash_password(user.password)
-        new_user = models.User(
-            nom=user.nom, prenom=user.prenom, email=user.email,
-            password=hashed_pwd, role=user.role,
-            specialite=user.specialite, hopital=user.hopital
-        )
-        db.add(new_user)
-        db.commit()
-        db.refresh(new_user)
-
-        send_email_safe(new_user.email, "Bienvenue sur SantéApp", f"Bonjour {new_user.prenom},\nVotre compte a été créé.")
-        return new_user
-    except HTTPException:
-        raise
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/api/auth/login", response_model=schemas.Token)
-@app.post("/api/login", response_model=schemas.Token)
-def login(user_credentials: schemas.UserLogin, db: Session = Depends(get_db)):
-    user = db.query(models.User).filter(models.User.email == user_credentials.email).first()
-    if not user or not utils.verify_password(user_credentials.password, user.password):
-        raise HTTPException(status_code=401, detail="Identifiants incorrects.")
-
-    access_token = utils.create_access_token(data={"sub": user.email, "role": user.role})
-    return {
-        "access_token": access_token,
-        "token_type": "bearer",
-        "user_id": user.id,
-        "nom": user.nom,
-        "prenom": user.prenom,
-        "role": user.role
-    }
-
-
-# --- UTILISATEURS & MÉDECINS ---
-
-@app.get("/api/medecins", response_model=List[schemas.UserResponse])
-def get_medecins(db: Session = Depends(get_db)):
-    medecins = db.query(models.User).filter(
-        func.lower(models.User.role).like("%medecin%") | 
-        func.lower(models.User.role).like("%médecin%")
-    ).all()
-    return medecins
-
-
-# --- CRÉNEAUX ---
-
-@app.post("/api/creneaux", response_model=schemas.CreneauResponse, status_code=status.HTTP_201_CREATED)
-def create_creneau(creneau: schemas.CreneauCreate, db: Session = Depends(get_db)):
-    val_date = creneau.date_heure or creneau.date_debut
-    new_creneau = models.Creneau(
-        medecin_id=creneau.medecin_id,
-        date_heure=val_date,
-        date_debut=creneau.date_debut,
-        date_fin=creneau.date_fin
-    )
-    db.add(new_creneau)
-    db.commit()
-    db.refresh(new_creneau)
-    return new_creneau
-
-@app.get("/api/creneaux/{medecin_id}", response_model=List[schemas.CreneauResponse])
-def get_creneaux_medecin(medecin_id: int, db: Session = Depends(get_db)):
-    return db.query(models.Creneau).filter(models.Creneau.medecin_id == medecin_id).all()
-
-
-# --- RENDEZ-VOUS ---
-
-@app.post("/api/rendez-vous", response_model=schemas.RendezVousResponse, status_code=status.HTTP_201_CREATED)
-def create_rendez_vous(rdv: schemas.RendezVousCreate, db: Session = Depends(get_db)):
-    new_rdv = models.RendezVous(patient_id=rdv.patient_id, creneau_id=rdv.creneau_id, motif=rdv.motif, statut="en_attente")
-    db.add(new_rdv)
-    db.commit()
-    db.refresh(new_rdv)
-    return new_rdv
-
-@app.get("/api/rendez-vous/patient/{patient_id}", response_model=List[schemas.RendezVousResponse])
-def get_rdv_patient(patient_id: int, db: Session = Depends(get_db)):
-    return db.query(models.RendezVous).filter(models.RendezVous.patient_id == patient_id).all()
-
-
-# --- FRONTEND STATIC ---
+# Fichiers statiques (PWA)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/")
 def read_root():
     return FileResponse("static/index.html")
+
+# ==========================================
+# AUTHENTIFICATION & CARTE DIGITALE
+# ==========================================
+
+@app.post("/api/auth/register")
+def register(user_data: schemas.UserRegister, db: Session = Depends(get_db)):
+    # Vérification email existant
+    db_user = db.query(models.User).filter(models.User.email == user_data.email).first()
+    if db_user:
+        raise HTTPException(status_code=400, detail="Email déjà utilisé")
+
+    # Génération d'un NID unique pour la Carte Digitale
+    nid = f"NID-{uuid.uuid4().hex[:8].upper()}"
+
+    hashed_pw = utils.hash_password(user_data.password)
+    
+    new_user = models.User(
+        nom=user_data.nom,
+        prenom=user_data.prenom,
+        email=user_data.email,
+        password=hashed_pw,
+        role=user_data.role,
+        carte_digitale_id=nid,
+        groupe_sanguin=user_data.groupe_sanguin,
+        allergies=user_data.allergies,
+        antecedents=user_data.antecedents
+    )
+
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    return {
+        "message": "Compte et carte créés avec succès",
+        "carte_digitale_id": new_user.carte_digitale_id
+    }
+
+
+@app.post("/api/auth/login")
+def login(user_data: schemas.UserLogin, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.email == user_data.email).first()
+    if not user or not utils.verify_password(user_data.password, user.password):
+        raise HTTPException(status_code=400, detail="Identifiants incorrects")
+
+    # Génération NID de secours si absent
+    if not user.carte_digitale_id:
+        user.carte_digitale_id = f"NID-{uuid.uuid4().hex[:8].upper()}"
+        db.commit()
+
+    return {
+        "user_id": user.id,
+        "nom": user.nom,
+        "prenom": user.prenom,
+        "email": user.email,
+        "role": user.role,
+        "carte_digitale_id": user.carte_digitale_id,
+        "groupe_sanguin": user.groupe_sanguin,
+        "allergies": user.allergies,
+        "antecedents": user.antecedents
+    }
+
+# ==========================================
+# ACCÈS SCANNER MÉDECIN & HISTORIQUE PATIENT
+# ==========================================
+
+@app.get("/api/patient/scan/{carte_id}", response_model=schemas.PatientCardOut)
+def scan_carte_patient(carte_id: str, db: Session = Depends(get_db)):
+    """
+    Appelé par le médecin lorsqu'il scanne le QR code 
+    ou saisit l'ID de la carte du patient.
+    """
+    patient = db.query(models.User).filter(models.User.carte_digitale_id == carte_id).first()
+    if not patient:
+        raise HTTPException(status_code=440, detail="Carte non trouvée ou invalide")
+
+    # Récupération de l'historique des consultations du patient
+    consultations_db = db.query(models.Consultation).filter(models.Consultation.patient_id == patient.id).order_by(models.Consultation.date_consultation.desc()).all()
+
+    historique = []
+    for c in consultations_db:
+        medecin = db.query(models.User).filter(models.User.id == c.medecin_id).first()
+        medecin_name = f"Dr. {medecin.prenom} {medecin.nom}" if medecin else "Praticien inconnu"
+        historique.append(schemas.ConsultationOut(
+            id=c.id,
+            date_consultation=c.date_consultation,
+            medecin_nom=medecin_name,
+            symptomes=c.symptomes,
+            diagnostic=c.diagnostic,
+            prescription=c.prescription
+        ))
+
+    return schemas.PatientCardOut(
+        carte_digitale_id=patient.carte_digitale_id,
+        nom=patient.nom,
+        prenom=patient.prenom,
+        groupe_sanguin=patient.groupe_sanguin,
+        allergies=patient.allergies,
+        antecedents=patient.antecedents,
+        historique=historique
+    )
+
+
+@app.post("/api/consultations/create")
+def create_consultation(data: schemas.ConsultationCreate, medecin_id: int, db: Session = Depends(get_db)):
+    """
+    Permet au médecin d'ajouter une consultation au dossier du patient 
+    scanné grâce à sa carte.
+    """
+    patient = db.query(models.User).filter(models.User.carte_digitale_id == data.carte_digitale_id).first()
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient introuvable avec ce NID")
+
+    nouvelle_consultation = models.Consultation(
+        patient_id=patient.id,
+        medecin_id=medecin_id,
+        symptomes=data.symptomes,
+        diagnostic=data.diagnostic,
+        prescription=data.prescription
+    )
+
+    db.add(nouvelle_consultation)
+    db.commit()
+    db.refresh(nouvelle_consultation)
+
+    return {"message": "Consultation enregistrée avec succès sur la carte du patient."}
+
+# Route pour réserver un rendez-vous (vérifie la disponibilité du médecin)
+@app.post("/api/rdv/creer")
+def prendre_rdv(patient_id: int, medecin_id: int, date_heure: datetime, db: Session = Depends(get_db)):
+    # 1. Vérifier si le médecin a déjà un RDV à cette exacte heure
+    rdv_existant = db.query(models.RendezVous).filter(
+        models.RendezVous.medecin_id == medecin_id,
+        models.RendezVous.date_heure == date_heure,
+        models.RendezVous.statut == "CONFIRME"
+    ).first()
+
+    if rdv_existant:
+        raise HTTPException(
+            status_code=400, 
+            detail="Ce créneau est déjà réservé pour ce médecin. Veuillez choisir une autre heure."
+        )
+
+    # 2. Récupérer le lieu du médecin
+    medecin = db.query(models.User).filter(models.User.id == medecin_id).first()
+    if not medecin:
+        raise HTTPException(status_code=444, detail="Médecin introuvable")
+
+    lieu = medecin.lieu_consultation or "Cabinet principal"
+
+    # 3. Enregistrer le RDV
+    nouveau_rdv = models.RendezVous(
+        patient_id=patient_id,
+        medecin_id=medecin_id,
+        lieu=lieu,
+        date_heure=date_heure,
+        statut="CONFIRME"
+    )
+
+    db.add(nouveau_rdv)
+    db.commit()
+    return {"message": "Rendez-vous confirmé", "lieu": lieu, "date_heure": date_heure}
+
+
+# Route pour lister les médecins et leurs lieux d'exercice
+@app.get("/api/medecins/liste")
+def lister_medecins(db: Session = Depends(get_db)):
+    medecins = db.query(models.User).filter(models.User.role == "MEDECIN").all()
+    return [
+        {
+            "id": m.id,
+            "nom": f"Dr. {m.prenom} {m.nom}",
+            "lieu": m.lieu_consultation or "Non renseigné"
+        }
+        for m in medecins
+    ]
