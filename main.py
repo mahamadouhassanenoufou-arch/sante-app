@@ -10,21 +10,37 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import text
+from sqlalchemy import text, func
 
 import models, schemas, utils
 from database import engine, get_db
 
-# Recréation propre pour appliquer les nouveaux champs
-with engine.connect() as conn:
-    try:
-        conn.execute(text("DROP TABLE IF EXISTS rendez_vous CASCADE;"))
-        conn.execute(text("DROP TABLE IF EXISTS creneaux CASCADE;"))
-        conn.commit()
-    except Exception as e:
-        print(f"Info migration: {e}")
-
+# Recréation des tables
 models.Base.metadata.create_all(bind=engine)
+
+# Injection automatique d'un médecin de démonstration si aucun médecin n'est trouvé
+with Session(engine) as session:
+    try:
+        medecin_exist = session.query(models.User).filter(
+            func.lower(models.User.role).like("%medecin%") | 
+            func.lower(models.User.role).like("%médecin%")
+        ).first()
+
+        if not medecin_exist:
+            test_medecin = models.User(
+                nom="Mati",
+                prenom="Inoussa",
+                email="dr.mati@sante.ne",
+                password=utils.hash_password("123456"),
+                role="Médecin",
+                specialite="Médecine Générale",
+                hopital="Hôpital National de Niamey"
+            )
+            session.add(test_medecin)
+            session.commit()
+            print("Médecin de démonstration injecté avec succès.")
+    except Exception as e:
+        print(f"Info injection médecin: {e}")
 
 app = FastAPI(title="SantéApp API")
 
@@ -111,7 +127,11 @@ def login(user_credentials: schemas.UserLogin, db: Session = Depends(get_db)):
 
 @app.get("/api/medecins", response_model=List[schemas.UserResponse])
 def get_medecins(db: Session = Depends(get_db)):
-    return db.query(models.User).filter(models.User.role == "Médecin").all()
+    medecins = db.query(models.User).filter(
+        func.lower(models.User.role).like("%medecin%") | 
+        func.lower(models.User.role).like("%médecin%")
+    ).all()
+    return medecins
 
 
 # --- CRÉNEAUX ---
